@@ -14,11 +14,19 @@ export type ReplyItem = {
 export type CommentItem = ReplyItem & {
   resolved: boolean;
   pin: { x: number; y: number } | null;
+  htmlPin: { selector: string; relX: number; relY: number } | null;
   pinNo: number | null;
   replies: ReplyItem[];
 };
 
-export type PendingPin = { kind: "image"; x: number; y: number };
+export type ImagePin = { kind: "image"; x: number; y: number };
+export type HtmlPin = {
+  kind: "html";
+  selector: string;
+  relX: number;
+  relY: number;
+};
+export type PendingPin = ImagePin | HtmlPin;
 
 const NAME_KEY = "artipin:name";
 

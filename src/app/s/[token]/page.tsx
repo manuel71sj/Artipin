@@ -4,7 +4,8 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
-import { type CommentItem, CommentPanel } from "./_components/comment-panel";
+import type { CommentItem } from "./_components/comment-panel";
+import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
 
 const label = (ms: number) =>
@@ -35,10 +36,24 @@ export default async function SharePage({
   const items: CommentItem[] = rows
     .filter((c) => c.parentId === null)
     .map((c) => {
-      const a = c.anchor as { kind?: string; x?: number; y?: number } | null;
+      const a = c.anchor as {
+        kind?: string;
+        x?: number;
+        y?: number;
+        selector?: string;
+        relX?: number;
+        relY?: number;
+      } | null;
       const pin =
         a?.kind === "image" && a.x !== undefined && a.y !== undefined
           ? { x: a.x, y: a.y }
+          : null;
+      const htmlPin =
+        a?.kind === "html" &&
+        a.selector !== undefined &&
+        a.relX !== undefined &&
+        a.relY !== undefined
+          ? { selector: a.selector, relX: a.relX, relY: a.relY }
           : null;
       return {
         id: c.id,
@@ -48,7 +63,8 @@ export default async function SharePage({
         createdLabel: label(c.createdAt),
         resolved: c.resolvedAt !== null,
         pin,
-        pinNo: pin ? ++pinNo : null,
+        htmlPin,
+        pinNo: pin || htmlPin ? ++pinNo : null,
         replies: rows
           .filter((r) => r.parentId === c.id)
           .map((r) => ({
@@ -64,8 +80,12 @@ export default async function SharePage({
   if (file.kind === "html") {
     return (
       <main className="share">
-        <p>HTML 뷰어는 다음 단계에서 제공됩니다</p>
-        <CommentPanel token={token} items={items} isOwner={isOwner} />
+        <HtmlViewer
+          src={`${contentOrigin()}/c/${token}`}
+          token={token}
+          items={items}
+          isOwner={isOwner}
+        />
       </main>
     );
   }

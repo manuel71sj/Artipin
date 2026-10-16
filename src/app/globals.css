@@ -141,3 +141,25 @@ a {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.mode-toggle {
+  margin-bottom: 8px;
+}
+
+.mode-toggle button[aria-pressed="true"] {
+  font-weight: bold;
+}
+
+.pending-anchor {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.html-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 96px);
+  min-height: 400px;
+  border: 1px solid #888;
+  background: #fff;
+}

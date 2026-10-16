@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  type CommentItem,
-  CommentPanel,
-  type PendingPin,
-} from "./comment-panel";
+import { type CommentItem, CommentPanel, type ImagePin } from "./comment-panel";
 
 export function ImageViewer({
   src,
@@ -21,7 +17,7 @@ export function ImageViewer({
   isOwner: boolean;
 }) {
   const [commentMode, setCommentMode] = useState(false);
-  const [pending, setPending] = useState<PendingPin | null>(null);
+  const [pending, setPending] = useState<ImagePin | null>(null);
 
   function place(e: React.MouseEvent<HTMLImageElement>) {
     if (!commentMode) return;
