@@ -17,5 +17,6 @@ pnpm dev
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 클라이언트 시크릿 |
 | `AUTH_ALLOWED_DOMAIN` | 로그인을 허용할 회사 도메인(Google `hd` 클레임과 일치해야 함) |
+| `APP_HOST` | 소유자 화면 호스트(`host[:port]`, 예: `app.localhost:3000`). 공유 링크 origin에 쓰며 `localhost`가 포함되면 http, 아니면 https |
 
 리버스 프록시 뒤에 배포할 때는 `AUTH_TRUST_HOST=true`가 필요할 수 있다.
