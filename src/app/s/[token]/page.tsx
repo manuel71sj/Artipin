@@ -7,6 +7,7 @@ import { contentOrigin } from "@/lib/hosts";
 import type { CommentItem } from "./_components/comment-panel";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
+import { ViewBeacon } from "./_components/view-beacon";
 
 const label = (ms: number) =>
   new Date(ms).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
@@ -80,6 +81,7 @@ export default async function SharePage({
   if (file.kind === "html") {
     return (
       <main className="share">
+        <ViewBeacon token={token} />
         <HtmlViewer
           src={`${contentOrigin()}/c/${token}`}
           token={token}
@@ -92,6 +94,7 @@ export default async function SharePage({
 
   return (
     <main className="share">
+      <ViewBeacon token={token} />
       <ImageViewer
         src={`${contentOrigin()}/c/${token}`}
         alt={file.title}

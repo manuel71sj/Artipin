@@ -9,7 +9,7 @@ export const uploadsDir = join(dataDir, "uploads");
 
 mkdirSync(uploadsDir, { recursive: true });
 
-const sqlite = new Database(join(dataDir, "app.db"));
+export const sqlite = new Database(join(dataDir, "app.db"));
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 
