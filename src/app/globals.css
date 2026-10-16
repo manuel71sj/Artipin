@@ -47,3 +47,97 @@ a {
     color-scheme: dark;
   }
 }
+
+.share {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  align-items: flex-start;
+}
+
+.viewer {
+  flex: 1;
+  min-width: 0;
+}
+
+.stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.stage img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.stage.commenting img {
+  cursor: crosshair;
+}
+
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e5484d;
+  color: #fff;
+  font-size: 12px;
+  line-height: 24px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.pin.resolved {
+  opacity: 0.35;
+}
+
+.pin.pending {
+  background: #3b82f6;
+}
+
+.comments {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .share {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .comments {
+    width: auto;
+  }
+}
+
+.comments li {
+  list-style: none;
+  margin-bottom: 12px;
+}
+
+.comments .replies {
+  margin: 8px 0 0 16px;
+}
+
+.comments .resolved {
+  opacity: 0.5;
+}
+
+.comments form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment-meta {
+  font-size: 12px;
+}
+
+.comment-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
