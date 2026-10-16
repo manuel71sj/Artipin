@@ -5,13 +5,19 @@ export const HTML_MAX_BYTES = 5 * 1024 * 1024;
 const startsWith = (buf: Buffer, bytes: number[], offset = 0) =>
   bytes.every((b, i) => buf[offset + i] === b);
 
-function isImage(buf: Buffer): boolean {
-  const png = startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  const jpeg = startsWith(buf, [0xff, 0xd8, 0xff]);
-  const webp =
+/** 본문 첫 바이트로 이미지 MIME을 판정한다. 이미지가 아니면 null. */
+export function imageMime(
+  buf: Buffer,
+): "image/png" | "image/jpeg" | "image/webp" | null {
+  if (startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    return "image/png";
+  if (startsWith(buf, [0xff, 0xd8, 0xff])) return "image/jpeg";
+  if (
     startsWith(buf, [0x52, 0x49, 0x46, 0x46]) && // "RIFF"
-    startsWith(buf, [0x57, 0x45, 0x42, 0x50], 8); // "WEBP"
-  return png || jpeg || webp;
+    startsWith(buf, [0x57, 0x45, 0x42, 0x50], 8) // "WEBP"
+  )
+    return "image/webp";
+  return null;
 }
 
 export type UploadCheck =
@@ -22,7 +28,7 @@ const mb = (bytes: number) => `${bytes / 1024 / 1024}MB`;
 
 /** 확장자·클라이언트 MIME은 믿지 않고 본문으로 판정한다. HTML만 확장자를 본다. */
 export function checkUpload(name: string, data: Buffer): UploadCheck {
-  if (isImage(data)) {
+  if (imageMime(data)) {
     if (data.length > IMAGE_MAX_BYTES) {
       return {
         ok: false,
