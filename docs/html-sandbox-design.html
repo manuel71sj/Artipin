@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML 격리·앵커링 명세</title>
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1d1d1b; --muted: #6b6a66; --line: #dcd9d2; --card: #ffffff;
+    --accent: #1f5fd1; --ok: #1f7a4d; --warn: #9a6a00; --bad: #b3261e; --code: #f2efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --fg: #ece9e2; --muted: #9b988f; --line: #34332f; --card: #1c1c1a;
+      --accent: #7aa7ff; --ok: #5fcf95; --warn: #e5b94a; --bad: #ff8a80; --code: #242421;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; }
+  h2 { font-size: 1.25rem; margin: 44px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 22px 0 6px; }
+  p, li { max-width: 76ch; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  code { background: var(--code); padding: 1px 6px; border-radius: 4px; font-size: .9em; }
+  pre { background: var(--code); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: .85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; margin: 10px 0; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+  .scroll { overflow-x: auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 14px 0; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  figure { margin: 18px 0; }
+  figcaption { color: var(--muted); font-size: .85rem; margin-top: 6px; }
+  svg { max-width: 100%; height: auto; }
+  svg text { fill: var(--fg); font: 13px -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  svg .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  svg .hl { fill: none; stroke: var(--accent); stroke-width: 1.8; }
+  svg .muted { fill: var(--muted); }
+  svg .line { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  svg .arrow { stroke: var(--accent); stroke-width: 1.6; fill: none; marker-end: url(#a); }
+  @media (max-width: 600px) { main { padding-top: 24px; } h1 { font-size: 1.5rem; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>HTML 격리·앵커링 명세</h1>
+<p class="sub">업로드된 독립형 HTML을 안전하게 실행하고, 그 위에 핀 댓글을 붙이는 방법 · Artipin MVP · 이슈 #6, #8 구현 기준</p>
+
+<div class="card">
+  <strong>핵심 규칙 세 가지.</strong><br>
+  1) 업로드 HTML은 <code>CONTENT_HOST</code>에서만 서빙하고 iframe은 <code>sandbox="allow-scripts"</code>만 준다 (<code>allow-same-origin</code> 금지).<br>
+  2) 부모와 iframe 사이 <code>postMessage</code> 채널은 하나뿐이고, 받는 쪽은 항상 출처(<code>event.source</code>)와 내용(스키마)을 둘 다 검사한다.<br>
+  3) 앵커 값은 어디서 오든 신뢰하지 않는다. 브라우저 쪽과 API 쪽에서 같은 스키마로 검증하고, 값은 텍스트로만 렌더한다.
+</div>
+
+<h2>1. 위협과 대응</h2>
+<div class="scroll"><table>
+<tr><th>위협</th><th>대응</th><th>남는 위험</th></tr>
+<tr><td>업로드 HTML이 앱 쿠키·세션을 읽음</td><td>iframe sandbox에 <code>allow-same-origin</code> 없음 → 불투명 출처. 콘텐츠를 직접 열어도 CSP <code>sandbox</code> 헤더가 같은 효과. 세션 쿠키는 Domain 없는 호스트 전용</td><td class="ok">없음(앱 데이터 기준)</td></tr>
+<tr><td>업로드 HTML이 앱 API를 호출</td><td>불투명 출처 + CSP <code>connect-src 'none'</code>(콘텐츠 응답) + 앱 API는 세션 쿠키 필요</td><td class="ok">없음</td></tr>
+<tr><td>피싱 폼 제출</td><td>CSP <code>form-action 'none'</code>, sandbox에 <code>allow-forms</code> 없음</td><td class="warn">링크 클릭 유도(<code>allow-popups</code> 없음으로 새 창은 막힘)</td></tr>
+<tr><td>외부 리소스 경유 유출·방문자 추적</td><td>기본 정책은 외부 스크립트·이미지·스타일을 <strong>허용</strong>(CDN 차트 라이브러리 때문)</td><td class="warn">감수. 업로더가 회사 도메인 계정으로 제한됨. 샘플 확인 후 좁힘</td></tr>
+<tr><td>적대적 HTML이 <code>postMessage</code> 위조</td><td>부모가 종류 허용 목록·범위·길이 검사, 값은 텍스트로만 렌더</td><td class="warn">엉뚱한 위치의 핀(최악)</td></tr>
+<tr><td>API 직접 호출로 임의 anchor 저장</td><td>댓글 생성 API가 같은 스키마 검증, 위반은 400</td><td class="ok">없음</td></tr>
+<tr><td>토큰 추측</td><td>128비트 랜덤 토큰, 추측 가능한 id 경로 없음</td><td class="ok">없음</td></tr>
+<tr><td>앱 화면을 다른 사이트가 프레임으로 삽입</td><td>APP_HOST 응답에 <code>frame-ancestors 'none'</code></td><td class="ok">없음</td></tr>
+<tr><td>MIME 스니핑·인코딩 혼동</td><td><code>nosniff</code>, Content-Type 고정(HTML은 UTF-8만 업로드 허용), 이미지는 매직바이트 판정값</td><td class="ok">없음</td></tr>
+</table></div>
+
+<h2>2. 호스트와 응답</h2>
+<figure>
+<svg viewBox="0 0 860 220" role="img" aria-label="뷰어 페이지와 콘텐츠 iframe의 관계">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--accent)"/></marker></defs>
+  <rect class="box" x="10" y="10" width="840" height="200" rx="10"/>
+  <text x="26" y="34">APP_HOST · /s/{token} (뷰어 페이지, 부모)</text>
+  <rect class="hl" x="30" y="48" width="500" height="150" rx="8"/>
+  <text x="46" y="72">&lt;iframe sandbox="allow-scripts" src="https://CONTENT_HOST/c/{token}"&gt;</text>
+  <rect class="box" x="50" y="88" width="460" height="92" rx="6"/>
+  <text x="64" y="112" class="muted">업로드된 HTML (불투명 출처)</text>
+  <text x="64" y="134" class="muted">+ 서버가 주입한 브리지 스크립트</text>
+  <text x="64" y="156" class="muted">+ 브리지가 그리는 핀 오버레이</text>
+  <rect class="box" x="570" y="48" width="260" height="150" rx="8"/>
+  <text x="586" y="72">댓글 목록·입력 (부모 React)</text>
+  <text x="586" y="96" class="muted">핀 위치 선택 결과를 받아 API로 저장</text>
+  <path class="arrow" d="M510 120 H570"/>
+  <path class="arrow" d="M570 150 H510"/>
+  <text x="515" y="112" class="muted" style="font-size:11px">postMessage</text>
+</svg>
+<figcaption>부모는 앱 쿠키·API를 가진 쪽, iframe 안은 신뢰하지 않는 쪽이다. 둘은 postMessage로만 통신한다.</figcaption>
+</figure>
+
+<h3>CONTENT_HOST 응답 (<code>/c/{share_token}</code>)</h3>
+<pre><code>HTML
+  Content-Type: text/html; charset=utf-8
+  Content-Security-Policy: sandbox allow-scripts; connect-src 'none'; form-action 'none'; frame-ancestors &lt;APP_HOST&gt;
+  X-Content-Type-Options: nosniff
+
+이미지
+  Content-Type: image/png | image/jpeg | image/webp   (매직바이트 검증 결과)
+  X-Content-Type-Options: nosniff
+
+없는 토큰·삭제된 파일: 404 (두 호스트 모두)</code></pre>
+<ul>
+  <li><code>default-src</code>를 두지 않는다. 외부 스크립트·이미지·스타일은 허용한다. 좁힐지는 샘플 확인 뒤 결정한다.</li>
+  <li>CONTENT_HOST는 <code>/c/*</code>만 응답한다. <code>/s/*</code>, <code>/api/*</code>, 로그인 경로는 404.</li>
+  <li>APP_HOST는 업로드 파일 본문을 직접 서빙하지 않는다.</li>
+  <li>로컬 개발: <code>app.localhost</code>, <code>content.localhost</code> (<code>*.localhost</code>는 로컬로 해석된다).</li>
+</ul>
+
+<h2>3. 앵커</h2>
+<pre><code>이미지:  { "kind": "image", "x": 0.45, "y": 0.32 }                      // 이미지 크기 대비 0~1
+HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; canvas", "relX": 0.62, "relY": 0.31 }
+답글:    anchor = null  (답글은 1단계, 부모 댓글의 핀을 따름)</code></pre>
+
+<h3>선택자 만들기 (브리지, 클릭 시)</h3>
+<ol>
+  <li>클릭된 요소에서 시작해 <code>id</code>가 있는 가장 가까운 조상까지 올라간다(없으면 <code>body</code>까지).</li>
+  <li>각 단계는 <code>tag:nth-of-type(n)</code>, <code>id</code>가 있으면 <code>#id</code>로 끊는다.</li>
+  <li><code>relX = (clientX − rect.left) / rect.width</code>, <code>relY</code>도 같은 방식. 0~1로 자른다.</li>
+</ol>
+
+<h3>핀 그리기</h3>
+<ol>
+  <li>부모가 <code>render-pins</code>로 댓글 목록(번호, selector, relX, relY, resolved)을 보낸다.</li>
+  <li>브리지는 댓글마다 <code>try { document.querySelector(selector) } catch</code>로 요소를 찾는다. 실패하면 그 댓글만 "핀 없음"으로 두고 나머지는 계속 그린다.</li>
+  <li>찾으면 <code>getBoundingClientRect()</code>와 스크롤 위치로 절대 좌표를 계산해 오버레이에 그린다. 스크롤·리사이즈 때 다시 계산한다.</li>
+  <li>핀 없는 댓글도 댓글 목록에는 항상 보인다. 탭·필터 상태 복원은 하지 않는다(MVP 범위 밖).</li>
+</ol>
+
+<h2>4. postMessage 프로토콜</h2>
+<div class="scroll"><table>
+<tr><th>방향</th><th>type</th><th>payload</th><th>수신측 검사</th></tr>
+<tr><td>부모 → 브리지</td><td><code>mode</code></td><td><code>{ mode: "browse" | "comment" }</code></td><td>브리지: <code>event.source === window.parent</code>, mode 허용 목록</td></tr>
+<tr><td>브리지 → 부모</td><td><code>anchor-picked</code></td><td><code>{ selector, relX, relY }</code></td><td>부모: <code>event.source === iframe.contentWindow</code>, selector는 문자열·500자 이하, relX·relY는 0~1 숫자</td></tr>
+<tr><td>부모 → 브리지</td><td><code>render-pins</code></td><td><code>[{ id, n, selector, relX, relY, resolved }]</code></td><td>브리지: 출처 확인, 배열·타입 확인</td></tr>
+</table></div>
+<ul>
+  <li>iframe이 불투명 출처라 <code>targetOrigin</code>을 지정할 수 없다. 그래서 <code>"*"</code>로 보내되 수신측이 출처와 내용을 모두 검사한다.</li>
+  <li>알 수 없는 <code>type</code>은 무시한다.</li>
+  <li>부모는 payload 값을 DOM에 넣을 때 <code>textContent</code>만 쓴다. HTML로 해석하지 않는다.</li>
+</ul>
+
+<h3>검증 규칙 (브라우저 · API 공통)</h3>
+<ul>
+  <li><code>kind</code> ∈ {image, html}. 파일 종류와 일치해야 한다.</li>
+  <li>좌표는 0~1 숫자. 문자열·NaN·범위 밖은 거부.</li>
+  <li><code>selector</code>는 문자열, 500자 이하. 문법 검사는 브리지에서 예외 처리로 대신한다.</li>
+  <li><code>author_name</code> 50자, <code>body</code> 2000자 이하.</li>
+  <li>위반하면 API는 400을 반환한다.</li>
+</ul>
+
+<h2>5. 브리지 모드와 알려진 한계</h2>
+<ul>
+  <li><strong>탐색 모드:</strong> 브리지는 아무것도 가로채지 않는다. 원본 HTML이 그대로 동작한다.</li>
+  <li><strong>댓글 모드:</strong> 브리지가 캡처 단계에서 클릭을 가로채고(<code>preventDefault</code>) 선택자를 계산해 <code>anchor-picked</code>를 보낸다.</li>
+  <li class="warn"><strong>샌드박스 제약:</strong> <code>localStorage</code>·<code>sessionStorage</code>·<code>document.cookie</code> 접근이 예외를 던지고, <code>alert</code>·폼 제출·새 창 링크가 막힌다. 로드 시 localStorage를 쓰는 HTML은 깨질 수 있다. 저장소 대체 shim은 넣지 않고 샘플로 얼마나 깨지는지 확인한다.</li>
+  <li class="warn"><strong>업로드 HTML의 자체 CSP:</strong> <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code>가 인라인 스크립트를 막으면 브리지가 실행되지 않는다. 이 경우 뷰어는 "이 파일은 핀 댓글을 지원하지 않을 수 있습니다"를 표시하고 목록 댓글만 허용한다.</li>
+  <li class="warn"><strong>핀 스타일:</strong> 핀이 페이지 DOM 안에 그려지므로 페이지 CSS가 가리거나 바꿀 수 있다. 그런 사례가 확인되면 Shadow DOM으로 격리한다(미리 넣지 않는다).</li>
+  <li><strong>선택자가 깨지는 경우:</strong> 동적으로 바뀌는 페이지는 selector가 안 맞을 수 있다. 핀은 숨기고 댓글 목록에는 남긴다.</li>
+</ul>
+
+<h2>6. 격리 확인 체크리스트 (이슈 #8, 1회)</h2>
+<p>적대적 샘플 HTML 한 개를 올리고 뷰어에서 열어 아래가 모두 <strong>실패</strong>하거나 <strong>걸러지는지</strong> 확인한다. 결과는 이슈 #8에 기록한다. 자동화 테스트로 만들지 않는다.</p>
+<div class="scroll"><table>
+<tr><th>시도</th><th>기대 결과</th></tr>
+<tr><td><code>document.cookie</code> 읽기</td><td>예외 (SecurityError)</td></tr>
+<tr><td><code>localStorage</code> 읽기·쓰기</td><td>예외</td></tr>
+<tr><td><code>window.parent.document</code> 접근</td><td>예외 (교차 출처)</td></tr>
+<tr><td><code>fetch("https://APP_HOST/api/...")</code></td><td>CSP로 차단</td></tr>
+<tr><td>위조 <code>postMessage</code>: relX=5, 10000자 selector, <code>"&lt;img onerror=…&gt;"</code> 문자열</td><td>부모 검증에서 거부, DOM에 HTML로 삽입되지 않음</td></tr>
+<tr><td>CONTENT_HOST URL을 새 탭에서 직접 열어 스크립트 실행</td><td>CSP <code>sandbox</code>로 불투명 출처 유지, 앱 쿠키 읽기 실패</td></tr>
+</table></div>
+
+</main>
+</body>
+</html>
