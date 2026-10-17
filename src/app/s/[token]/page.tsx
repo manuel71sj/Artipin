@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { preconnect } from "react-dom";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
@@ -23,6 +24,9 @@ export default async function SharePage({
     .from(files)
     .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
   if (!file) notFound();
+
+  // 본문(이미지·iframe)은 다른 origin(CONTENT_HOST)에서 오므로 연결을 미리 맺는다.
+  preconnect(contentOrigin());
 
   const session = await auth();
   const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
@@ -80,7 +84,8 @@ export default async function SharePage({
 
   if (file.kind === "html") {
     return (
-      <main className="share">
+      <main id="main" className="share">
+        <h1 className="sr-only">{file.title}</h1>
         <ViewBeacon token={token} />
         <HtmlViewer
           src={`${contentOrigin()}/c/${token}`}
@@ -93,7 +98,8 @@ export default async function SharePage({
   }
 
   return (
-    <main className="share">
+    <main id="main" className="share">
+      <h1 className="sr-only">{file.title}</h1>
       <ViewBeacon token={token} />
       <ImageViewer
         src={`${contentOrigin()}/c/${token}`}

@@ -1,0 +1,465 @@
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4) var(--space-7);
+}
+
+/* 상단 바 */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 2px solid var(--color-foreground);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display-stack);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brandDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-pin);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted-foreground);
+}
+
+.email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signout {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-foreground);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    text-decoration-color var(--duration-fast) ease,
+    transform var(--duration-base) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .signout:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* 업로드: 12컬럼 그리드에서 본문 7칸 + 규격 4칸. 박스 없이 페이지 정렬선에 바로 얹는다 */
+.drop {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--space-4);
+  position: relative;
+  margin: var(--space-6) 0;
+  isolation: isolate;
+}
+
+/* 드래그 중에만 영역이 드러난다. 레이아웃을 건드리지 않도록 바깥으로 16px 번지는 오버레이를
+   opacity + scale로만 움직인다(scale(0)에서 시작하지 않는다). 나갈 때(.drop::before)가 들어올 때(.dragging)보다 빠르다. */
+.drop::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(var(--space-3) * -1);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: color-mix(
+    in srgb,
+    var(--color-accent) 8%,
+    var(--color-background)
+  );
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+
+.dragging::before {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--duration-slow);
+}
+
+.intro {
+  grid-column: 1 / 8;
+}
+
+.title {
+  min-width: 0;
+  font-family: var(--font-display-stack);
+  font-size: clamp(28px, 5vw, var(--text-2xl));
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.pickButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    opacity var(--duration-base) ease,
+    transform var(--duration-base) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pickButton:hover {
+    background: var(--color-secondary);
+  }
+}
+
+.file:focus-visible + .pickButton {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+
+.file:disabled + .pickButton {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-muted-foreground);
+}
+
+.error {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-destructive);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-destructive);
+}
+
+/* 형식별 한도: 정의 목록이라 줄마다 대상과 값이 짝으로 읽힌다 */
+.spec {
+  grid-column: 9 / 13;
+  align-self: start;
+  font-size: var(--text-sm);
+  border-top: 2px solid var(--color-foreground);
+}
+
+.spec div {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.spec dt {
+  font-weight: 700;
+}
+
+.spec dd {
+  margin-top: var(--space-1);
+  color: var(--color-muted-foreground);
+}
+
+/* 파일 목록 */
+.listHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-7);
+  padding-bottom: var(--space-3);
+  border-bottom: 2px solid var(--color-foreground);
+}
+
+.listTitle {
+  min-width: 0;
+  font-family: var(--font-display-stack);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.count {
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  list-style: none;
+}
+
+/* 행 전체가 파일명 링크의 클릭 영역이다(.name::after). 버튼은 그 위에 둔다 */
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 184px 224px;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.kind {
+  width: fit-content;
+  padding: 2px var(--space-2);
+  border-radius: 2px;
+  background: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.titleCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* 링크라는 단서를 hover에만 두지 않는다: 평소에도 연한 밑줄 */
+.name {
+  min-width: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.name::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .name:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* 미해결 댓글 수: 공유 화면의 핀과 같은 모양과 색 */
+.pinCount {
+  flex: none;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background: var(--color-pin);
+  color: var(--color-on-pin);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.when {
+  font-size: var(--text-sm);
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* 평소에는 약한 테두리, 의도가 보일 때(hover·포커스) 남색으로 */
+.copy {
+  min-width: 112px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-muted-foreground);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    transform var(--duration-base) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .copy:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+}
+
+.copy[data-state="copied"] {
+  border-color: var(--color-primary);
+}
+
+.copy[data-state="failed"] {
+  border-color: var(--color-destructive);
+  color: var(--color-destructive);
+}
+
+.remove,
+.confirm {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-muted-foreground);
+  font: inherit;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    transform var(--duration-base) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .remove:hover:not(:disabled) {
+    color: var(--color-destructive);
+  }
+}
+
+/* 삭제 확인 단계: 같은 자리의 버튼이 위험 동작으로 바뀐다 */
+.confirm {
+  padding: 0 var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-destructive);
+  color: var(--color-on-destructive);
+  font-weight: 700;
+}
+
+.copy:disabled,
+.remove:disabled,
+.confirm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pickButton:active,
+.copy:active:not(:disabled),
+.remove:active:not(:disabled),
+.confirm:active:not(:disabled),
+.signout:active {
+  transform: scale(0.97);
+}
+
+/* 입력이 막힌 동안에는 눌러도 동작하지 않으므로 눌림 효과도 내지 않는다 */
+.file:disabled + .pickButton:active {
+  transform: none;
+}
+
+.empty {
+  padding: var(--space-5) 0;
+  line-height: 1.7;
+  color: var(--color-muted-foreground);
+  word-break: keep-all;
+}
+
+@media (max-width: 900px) {
+  .drop {
+    display: block;
+    margin: var(--space-5) 0;
+  }
+
+  .spec {
+    margin-top: var(--space-5);
+  }
+
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .titleCell {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    margin-top: var(--space-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drop::before {
+    transform: none;
+  }
+
+  .pickButton:active,
+  .copy:active,
+  .remove:active,
+  .confirm:active,
+  .signout:active {
+    transform: none;
+  }
+}

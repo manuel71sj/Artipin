@@ -82,7 +82,7 @@ export function CommentPanel({
     if (!res.ok) {
       setError(
         ((await res.json().catch(() => null)) as { error?: string } | null)
-          ?.error ?? "댓글 작성에 실패했습니다.",
+          ?.error ?? "댓글을 작성하지 못했습니다. 잠시 후 다시 시도하세요.",
       );
       return;
     }
@@ -100,11 +100,16 @@ export function CommentPanel({
       body: JSON.stringify({ resolved: !c.resolved }),
     });
     if (res.ok) router.refresh();
-    else alert("처리에 실패했습니다.");
+    else setError("처리하지 못했습니다. 잠시 후 다시 시도하세요.");
   }
 
   return (
     <aside className="comments">
+      {items.length === 0 ? (
+        <p className="comment-empty">
+          아직 댓글이 없습니다. 첫 댓글을 남겨 보세요.
+        </p>
+      ) : null}
       <ul>
         {items.map((c) => (
           <li key={c.id} className={c.resolved ? "resolved" : undefined}>
@@ -113,20 +118,25 @@ export function CommentPanel({
               {c.pinNo !== null ? `[${c.pinNo}] ` : ""}
               {c.body}
             </p>
-            <p>
-              <button type="button" onClick={() => setReplyTo(c)}>
+            <div className="comment-actions">
+              <button
+                type="button"
+                aria-label={`${c.authorName}님의 댓글에 답글`}
+                onClick={() => setReplyTo(c)}
+              >
                 답글
               </button>
               {isOwner ? (
-                <>
-                  {" "}
-                  <button type="button" onClick={() => toggleResolved(c)}>
-                    {c.resolved ? "재개" : "해결"}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  aria-label={`${c.authorName}님의 댓글 ${c.resolved ? "재개" : "해결"}`}
+                  onClick={() => toggleResolved(c)}
+                >
+                  {c.resolved ? "재개" : "해결"}
+                </button>
               ) : null}
-              {c.resolved ? " 해결됨" : ""}
-            </p>
+              {c.resolved ? <span>해결됨</span> : null}
+            </div>
             {c.replies.length > 0 ? (
               <ul className="replies">
                 {c.replies.map((r) => (
@@ -143,33 +153,42 @@ export function CommentPanel({
 
       <form onSubmit={submit}>
         {replyTo ? (
-          <p>
-            {replyTo.authorName}님의 댓글에 답글{" "}
+          <p className="reply-note">
+            {replyTo.authorName}님의 댓글에 답글
             <button type="button" onClick={() => setReplyTo(null)}>
               취소
             </button>
           </p>
         ) : pending ? (
-          <p>핀 위치에 댓글을 남깁니다.</p>
+          <p aria-live="polite">핀 위치에 댓글을 남깁니다.</p>
         ) : null}
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="이름"
-          maxLength={50}
-          required
-        />
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="댓글"
-          maxLength={2000}
-          rows={3}
-          required
-        />
+        <label className="field">
+          <span>이름</span>
+          <input
+            name="author_name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="nickname"
+            spellCheck={false}
+            maxLength={50}
+            required
+          />
+        </label>
+        <label className="field">
+          <span>댓글</span>
+          <textarea
+            name="body"
+            autoComplete="off"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={2000}
+            rows={3}
+            required
+          />
+        </label>
         {error ? <p role="alert">{error}</p> : null}
         <button type="submit" disabled={busy}>
-          작성
+          {busy ? "작성 중…" : "댓글 작성"}
         </button>
       </form>
     </aside>

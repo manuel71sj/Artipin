@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommentItem, CommentPanel, type HtmlPin } from "./comment-panel";
+import { ModeToggle } from "./mode-toggle";
 
 const BRIDGE_TIMEOUT_MS = 3000;
 
@@ -122,32 +123,21 @@ export function HtmlViewer({
   return (
     <>
       <section className="viewer">
-        <div className="mode-toggle">
-          <button
-            type="button"
-            aria-pressed={!commentMode}
-            disabled={!bridgeReady}
-            onClick={() => setMode(false)}
-          >
-            탐색 모드
-          </button>{" "}
-          <button
-            type="button"
-            aria-pressed={commentMode}
-            disabled={!bridgeReady}
-            onClick={() => setMode(true)}
-          >
-            댓글 모드
-          </button>
-          {timedOut && !bridgeReady ? (
-            <p>이 파일은 핀 댓글을 지원하지 않을 수 있습니다.</p>
-          ) : null}
-          {pending ? (
-            <p className="pending-anchor">
-              선택한 위치: <code>{pending.selector}</code>
-            </p>
-          ) : null}
-        </div>
+        <ModeToggle
+          commentMode={commentMode}
+          disabled={!bridgeReady}
+          onChange={setMode}
+        />
+        {timedOut && !bridgeReady ? (
+          <p className="viewer-note">
+            이 파일은 핀 댓글을 지원하지 않을 수 있습니다.
+          </p>
+        ) : null}
+        {pending ? (
+          <p className="viewer-note pending-anchor" aria-live="polite">
+            선택한 위치: <code translate="no">{pending.selector}</code>
+          </p>
+        ) : null}
         {listening ? (
           <iframe
             ref={iframeRef}

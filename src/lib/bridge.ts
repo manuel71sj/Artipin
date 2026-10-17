@@ -91,9 +91,9 @@ const BRIDGE = `(function () {
       d.textContent = String(p.n);
       d.style.cssText =
         "position:absolute;z-index:2147483647;pointer-events:none;margin:0;padding:0;" +
-        "box-sizing:border-box;width:24px;height:24px;border-radius:50%;background:#e5484d;" +
+        "box-sizing:border-box;width:24px;height:24px;border-radius:50%;background:" + (p.resolved ? "#475569" : "#c93036") + ";" +
         "color:#fff;font:12px/24px Arial,sans-serif;text-align:center;" +
-        "transform:translate(-50%,-50%);opacity:" + (p.resolved ? "0.35" : "1") + ";" +
+        "transform:translate(-50%,-50%);font-weight:700;" +
         "left:" + (r.left + window.scrollX + p.relX * r.width) + "px;" +
         "top:" + (r.top + window.scrollY + p.relY * r.height) + "px;";
       document.documentElement.appendChild(d);
