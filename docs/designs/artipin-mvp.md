@@ -73,16 +73,18 @@ AI로 만든 HTML·이미지 산출물을 다른 사람에게 보여주고 피�
 - 선택자를 찾지 못한 댓글은 핀 없이 댓글 목록에만 표시한다(별도 복원 로직 없음). 탭·필터 상태 복원은 범위 밖.
 
 **데이터 (SQLite)**
-- `owners`(email, name), `files`(owner, kind image|html, title, storage_path, size, share_token, created_at, deleted_at), `comments`(file, parent, author_name, visitor_id, is_owner, body, anchor JSON, resolved_at, created_at), `views`(file, visitor_id, first_seen_at; 복합 PK).
+- `owners`(provider, provider_account_id — 둘이 유일, email(표시용·null 가능), name), `files`(owner, kind image|html, title, storage_path, size, share_token, created_at, deleted_at), `comments`(file, parent, author_name, visitor_id, is_owner, body, anchor JSON, resolved_at, created_at), `views`(file, visitor_id, first_seen_at; 복합 PK).
 - 삭제: 저장된 파일 본문만 제거하고 `files.deleted_at`을 기록한다. 행(댓글·조회 포함)은 남겨 2주 관찰 지표가 사라지지 않게 한다. 삭제된 파일의 두 URL은 404다.
 - 공유 링크: `/s/{token}` — 128비트 랜덤 토큰. 링크를 아는 사람은 보기+댓글 가능.
 - `visitor_id`: APP_HOST의 익명 호스트 전용 쿠키(1년). 소유자 세션의 조회는 `views`에 기록하지 않는다. 소유자가 단 댓글·답글은 `is_owner=1`로 기록한다.
-- 지표 SQL: (a) 소유자 외 `views`가 1건 이상인 파일 수 (b) `is_owner=0` 댓글이 1건 이상인 파일 수 (c) 파일 2개 이상(삭제 포함)을 올린 소유자 수.
+- 지표 SQL: (a) 소유자 외 `views`가 1건 이상인 파일 수 (b) `is_owner=0` 댓글이 1건 이상인 파일 수 (c) 파일 2개 이상(삭제 포함)을 올린 소유자 수. 소유자는 제공자별로 구분되므로 같은 사람의 다른 제공자 계정은 별도로 센다.
 - 업로드 한도: 이미지 10MB, HTML 5MB(단일 파일). 기본값이며 사용하며 조정한다. 이미지는 매직바이트 검증, SVG는 제외.
 
-**소유자 인증 (가정, 확인 필요)**
-- 회사 도메인 제한 Google OAuth(Auth.js). 도메인 제한은 서버 측 `signIn` 콜백에서 ID 토큰의 `hd` 클레임과 `email_verified`를 검증해 강제한다(`hd` 요청 파라미터는 화면 힌트일 뿐이다). 이를 거치지 않으면 아무 Google 계정이 회사 호스트명 아래 HTML을 올릴 수 있다.
-- Google Workspace 사용 여부와 OAuth 클라이언트 발급 권한은 아직 확인하지 않았다.
+**소유자 인증**
+- Google·Microsoft·GitHub 개인 계정 OAuth(Auth.js). 도메인·테넌트 제한은 없다.
+- 소유자는 `(provider, provider_account_id)`로 식별하고 email은 표시용이다. Microsoft 일반 테넌트의 email은 검증되지 않아 식별에 쓰지 않는다. 같은 사람이 다른 제공자로 로그인하면 별도 소유자가 된다(MVP 감수).
+- Microsoft는 기본 issuer(`common`)를 쓴다.
+- 사전 작업: 제공자별 OAuth 앱 등록 3개.
 
 **검증 방식**
 - 자동화 테스트 스위트는 만들지 않는다. 각 이슈는 수동 수용 기준으로 확인하고, 재현된 결함에 대해서만 테스트를 추가한다.
@@ -90,7 +92,8 @@ AI로 만든 HTML·이미지 산출물을 다른 사람에게 보여주고 피�
 
 ## Open Questions
 
-1. 소유자 인증 방식(Google OAuth 가정)이 사내 환경에 맞는가?
+1. 해결(2026-10-17): 개인 계정 간편 인증(Google·Microsoft·GitHub)으로 결정.
+   - 새 질문: 배포가 사내망 전용인가? 업로더 제한이 없어져 외부 리소스 허용(CSP `default-src` 없음)의 근거가 약해졌다.
 2. 사내 첫 댓글 작성자 3명은 누구인가(이름·직무)?
 3. 인터랙션 보존(HTML)이 실제로 필요한 사례가 있는가? 없다면 이미지만으로 충분했을 수 있다.
 4. 캡처 방식의 번거로움이 얼마인가(한 번에 몇 분, 주 몇 회)?
@@ -113,7 +116,7 @@ AI로 만든 HTML·이미지 산출물을 다른 사람에게 보여주고 피�
 ## Dependencies
 
 - 인프라: 호스트명 2개, 영속 볼륨.
-- Google OAuth 클라이언트(가정).
+- Google·Microsoft·GitHub OAuth 앱 등록.
 - 첫 댓글 작성자 3명.
 
 ## The Assignment

@@ -64,7 +64,7 @@
 <tr><td>업로드 HTML이 앱 쿠키·세션을 읽음</td><td>iframe sandbox에 <code>allow-same-origin</code> 없음 → 불투명 출처. 콘텐츠를 직접 열어도 CSP <code>sandbox</code> 헤더가 같은 효과. 세션 쿠키는 Domain 없는 호스트 전용</td><td class="ok">없음(앱 데이터 기준)</td></tr>
 <tr><td>업로드 HTML이 앱 API를 호출</td><td>불투명 출처 + CSP <code>connect-src 'none'</code>(콘텐츠 응답) + 앱 API는 세션 쿠키 필요</td><td class="ok">없음</td></tr>
 <tr><td>피싱 폼 제출</td><td>CSP <code>form-action 'none'</code>, sandbox에 <code>allow-forms</code> 없음</td><td class="warn">링크 클릭 유도(<code>allow-popups</code> 없음으로 새 창은 막힘)</td></tr>
-<tr><td>외부 리소스 경유 유출·방문자 추적</td><td>기본 정책은 외부 스크립트·이미지·스타일을 <strong>허용</strong>(CDN 차트 라이브러리 때문)</td><td class="warn">감수. 업로더가 회사 도메인 계정으로 제한됨. 샘플 확인 후 좁힘</td></tr>
+<tr><td>외부 리소스 경유 유출·방문자 추적</td><td>기본 정책은 외부 스크립트·이미지·스타일을 <strong>허용</strong>(CDN 차트 라이브러리 때문)</td><td class="warn">감수. 업로더는 Google·Microsoft·GitHub 계정이 있는 누구나다(도메인 제한 없음). 앱 데이터는 불투명 출처로 보호됨. 배포가 사내망 전용인지 미확인(열린 질문). 샘플 확인 후 좁힘</td></tr>
 <tr><td>적대적 HTML이 <code>postMessage</code> 위조</td><td>부모가 종류 허용 목록·범위·길이 검사, 값은 텍스트로만 렌더</td><td class="warn">엉뚱한 위치의 핀(최악)</td></tr>
 <tr><td>API 직접 호출로 임의 anchor 저장</td><td>댓글 생성 API가 같은 스키마 검증, 위반은 400</td><td class="ok">없음</td></tr>
 <tr><td>토큰 추측</td><td>128비트 랜덤 토큰, 추측 가능한 id 경로 없음</td><td class="ok">없음</td></tr>

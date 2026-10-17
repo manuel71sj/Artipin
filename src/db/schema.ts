@@ -5,15 +5,27 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 const now = sql`(unixepoch() * 1000)`;
 
-export const owners = sqliteTable("owners", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-});
+export const owners = sqliteTable(
+  "owners",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    provider: text("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    email: text("email"),
+    name: text("name").notNull(),
+  },
+  (t) => [
+    uniqueIndex("owners_provider_account_unique").on(
+      t.provider,
+      t.providerAccountId,
+    ),
+  ],
+);
 
 export const files = sqliteTable("files", {
   id: integer("id").primaryKey({ autoIncrement: true }),

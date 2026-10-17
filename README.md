@@ -16,10 +16,19 @@ pnpm dev
 | `AUTH_SECRET` | Auth.js 세션(JWT) 서명 키. `openssl rand -base64 32` 등으로 생성 |
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 클라이언트 시크릿 |
-| `AUTH_ALLOWED_DOMAIN` | 로그인을 허용할 회사 도메인(Google `hd` 클레임과 일치해야 함) |
+| `AUTH_MICROSOFT_ENTRA_ID_ID` | Microsoft(Entra ID) 앱 등록의 클라이언트 ID |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Microsoft 앱 등록의 클라이언트 시크릿. `AUTH_MICROSOFT_ENTRA_ID_ISSUER`는 두지 않는다(기본 `common`이 개인·회사 계정을 모두 허용하고, `consumers`는 이 Auth.js 버전에서 issuer 검사에 실패한다) |
+| `AUTH_GITHUB_ID` | GitHub OAuth App 클라이언트 ID |
+| `AUTH_GITHUB_SECRET` | GitHub OAuth App 클라이언트 시크릿 |
 | `APP_HOST` | 소유자 화면 호스트(`host[:port]`, 예: `app.localhost:3000`). 공유 링크 origin에 쓰며 `localhost`가 포함되면 http, 아니면 https |
 | `DATA_DIR` | SQLite(`app.db`)와 `uploads/`를 두는 디렉터리. 기본 `./data`, 컨테이너 이미지는 `/data` |
 | `CONTENT_HOST` | 업로드 본문 서빙 호스트(`host[:port]`, 예: `content.localhost:3000`). `APP_HOST`와 다른 값이어야 하며, 이 호스트는 `/c/*`만 응답한다 |
+
+로그인은 Google·Microsoft·GitHub 개인 계정을 쓰며 도메인·테넌트 제한은 없다. 제공자별 콜백 URL은 `{APP_HOST 기준 origin}/api/auth/callback/{google|microsoft-entra-id|github}`다(`APP_HOST`에 `localhost`가 포함되면 `http://`, 아니면 `https://`).
+
+- Google: OAuth 동의 화면을 External로 두고 게시 상태를 "In production"으로 한다(Testing이면 등록된 테스트 사용자만 로그인된다).
+- Microsoft: 앱 등록의 지원 계정 유형을 "모든 조직 디렉터리 + 개인 Microsoft 계정"으로 한다.
+- GitHub: OAuth App은 콜백 URL이 하나뿐이므로 로컬용과 배포용 앱을 따로 등록한다.
 
 `next start`가 아닌 배포(컨테이너·프록시 뒤)에서는 `AUTH_TRUST_HOST=true`가 필요하다. 이 값이 없으면 로그인 세션이 인식되지 않는다.
 
@@ -32,11 +41,14 @@ docker build -t artipin .
 docker run -d --name artipin -p 3000:3000 -v artipin-data:/data \
   -e APP_HOST=app.example.com -e CONTENT_HOST=content.example.com \
   -e AUTH_SECRET=... -e AUTH_GOOGLE_ID=... -e AUTH_GOOGLE_SECRET=... \
-  -e AUTH_ALLOWED_DOMAIN=example.com -e AUTH_TRUST_HOST=true \
+  -e AUTH_MICROSOFT_ENTRA_ID_ID=... -e AUTH_MICROSOFT_ENTRA_ID_SECRET=... \
+  -e AUTH_GITHUB_ID=... -e AUTH_GITHUB_SECRET=... -e AUTH_TRUST_HOST=true \
   artipin
 ```
 
 기동할 때 마이그레이션이 자동 적용된다(`pnpm db:migrate`와 같은 동작). 프록시는 요청의 `Host` 헤더를 그대로 전달해야 한다.
+
+이 버전(마이그레이션 0001)을 owners 행이 있던 기존 DB에 처음 적용할 때는 `AUTH_SECRET`을 새 값으로 바꿔 기존 세션을 모두 무효화한다(owners id가 1부터 다시 매겨져 옛 세션이 다른 소유자에게 붙을 수 있다).
 
 ## 백업
 

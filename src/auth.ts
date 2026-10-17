@@ -1,5 +1,7 @@
 import NextAuth, { type DefaultSession } from "next-auth";
+import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { db } from "@/db";
 import { owners } from "@/db/schema";
 
@@ -11,29 +13,25 @@ declare module "next-auth" {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
-  providers: [
-    // hd 파라미터는 계정 선택 화면 힌트일 뿐이다. 실제 검증은 signIn 콜백이 한다.
-    Google({
-      authorization: { params: { hd: process.env.AUTH_ALLOWED_DOMAIN } },
-    }),
-  ],
+  providers: [Google, MicrosoftEntraID, GitHub],
   pages: { signIn: "/login" },
   callbacks: {
-    signIn({ profile }) {
-      const domain = process.env.AUTH_ALLOWED_DOMAIN;
-      return Boolean(
-        domain && profile?.email_verified === true && profile.hd === domain,
-      );
-    },
-    async jwt({ token, profile }) {
-      // profile은 로그인 직후 한 번만 들어온다 → 이때 owners에 upsert
-      if (profile?.email) {
+    async jwt({ token, user, account }) {
+      // account는 로그인 직후 한 번만 들어온다 → 이때 owners에 upsert
+      if (account) {
+        const email = user.email ?? null;
+        const name = user.name ?? user.email ?? account.providerAccountId;
         const [owner] = await db
           .insert(owners)
-          .values({ email: profile.email, name: profile.name ?? profile.email })
+          .values({
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            email,
+            name,
+          })
           .onConflictDoUpdate({
-            target: owners.email,
-            set: { name: profile.name ?? profile.email },
+            target: [owners.provider, owners.providerAccountId],
+            set: { email, name },
           })
           .returning({ id: owners.id });
         token.id = String(owner.id);
