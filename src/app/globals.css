@@ -45,10 +45,12 @@
   --duration-slow: 200ms;
 
   --font-stack:
-    var(--font-latin), var(--font-hangul), "Apple SD Gothic Neo",
-    "Malgun Gothic", system-ui, sans-serif;
+    var(--font-latin, "Atkinson Hyperlegible Next"),
+    var(--font-hangul, "Noto Sans KR"), "Apple SD Gothic Neo", "Malgun Gothic",
+    system-ui, sans-serif;
   --font-display-stack:
-    var(--font-display), "Apple SD Gothic Neo", "Malgun Gothic", serif;
+    var(--font-display, "Hahmlet"), "Apple SD Gothic Neo", "Malgun Gothic",
+    serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -147,6 +149,52 @@ label,
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.share-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) var(--space-3) 0;
+  padding-bottom: var(--space-3);
+  border-bottom: 2px solid var(--color-foreground);
+}
+
+.share-brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display-stack);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.share-brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-pin);
+}
+
+.share-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-kind {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: 2px;
+  background: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
   white-space: nowrap;
 }
 

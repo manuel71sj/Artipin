@@ -82,32 +82,52 @@ export default async function SharePage({
       };
     });
 
+  // 링크를 받은 사람이 무엇을 보고 있는지 알 수 있도록 제목과 종류를 상단 바에 둔다.
+  const bar = (
+    <header className="share-bar">
+      <span className="share-brand" translate="no">
+        <span className="share-brand-dot" aria-hidden="true" />
+        Artipin
+      </span>
+      <h1 className="share-title" title={file.title}>
+        {file.title}
+      </h1>
+      <span className="share-kind">
+        {file.kind === "image" ? "이미지" : "HTML"}
+      </span>
+    </header>
+  );
+
   if (file.kind === "html") {
     return (
+      <>
+        {bar}
+        <main id="main" className="share">
+          <ViewBeacon token={token} />
+          <HtmlViewer
+            src={`${contentOrigin()}/c/${token}`}
+            token={token}
+            items={items}
+            isOwner={isOwner}
+          />
+        </main>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {bar}
       <main id="main" className="share">
-        <h1 className="sr-only">{file.title}</h1>
         <ViewBeacon token={token} />
-        <HtmlViewer
+        <ImageViewer
           src={`${contentOrigin()}/c/${token}`}
+          alt={file.title}
           token={token}
           items={items}
           isOwner={isOwner}
         />
       </main>
-    );
-  }
-
-  return (
-    <main id="main" className="share">
-      <h1 className="sr-only">{file.title}</h1>
-      <ViewBeacon token={token} />
-      <ImageViewer
-        src={`${contentOrigin()}/c/${token}`}
-        alt={file.title}
-        token={token}
-        items={items}
-        isOwner={isOwner}
-      />
-    </main>
+    </>
   );
 }
