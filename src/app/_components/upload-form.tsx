@@ -12,8 +12,9 @@ export function UploadForm() {
   const [done, setDone] = useState(false);
   // 자식 요소를 지날 때마다 dragleave가 발생하므로 진입 횟수로 센다.
   const depth = useRef(0);
+  const [html, setHtml] = useState("");
 
-  async function upload(file: File) {
+  async function upload(file: File): Promise<boolean> {
     setBusy(true);
     setError(null);
     setDone(false);
@@ -31,6 +32,18 @@ export function UploadForm() {
       );
     }
     setBusy(false);
+    return res.ok;
+  }
+
+  // 붙여넣은 HTML을 .html 파일로 만들어 파일 업로드와 같은 경로로 보낸다. 제목은 <title>, 없으면 기본값.
+  async function uploadHtml() {
+    const title =
+      html
+        .match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]
+        .trim()
+        .slice(0, 80) || "붙여넣은 HTML";
+    const file = new File([html], `${title}.html`, { type: "text/html" });
+    if (await upload(file)) setHtml("");
   }
 
   return (
@@ -79,6 +92,28 @@ export function UploadForm() {
               : "또는 이 영역에 끌어다 놓으세요"}
           </span>
         </div>
+
+        <details className={styles.paste}>
+          <summary>HTML 코드를 붙여넣어 올리기</summary>
+          <textarea
+            className={styles.pasteInput}
+            value={html}
+            disabled={busy}
+            rows={8}
+            spellCheck={false}
+            aria-label="HTML 코드"
+            placeholder="Claude·ChatGPT 아티팩트의 HTML 코드를 복사해 붙여넣으세요"
+            onChange={(e) => setHtml(e.target.value)}
+          />
+          <button
+            type="button"
+            className={`${styles.pickButton} ${styles.pasteSubmit}`}
+            disabled={busy || !html.trim()}
+            onClick={uploadHtml}
+          >
+            {busy ? "올리는 중…" : "링크 만들기"}
+          </button>
+        </details>
 
         <output className="sr-only">
           {done ? "업로드했습니다. 아래 목록에 추가되었습니다." : ""}
