@@ -251,6 +251,44 @@ label,
   background: var(--color-pin-pending);
 }
 
+/* 기존 댓글 핀은 눌러서 댓글 박스를 연다. .pin은 클릭을 통과시키므로 버튼만 되살린다. */
+.pin-button {
+  padding: 0;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.html-stage {
+  position: relative;
+}
+
+.pin-popover {
+  position: absolute;
+  z-index: 5;
+  width: max-content;
+  max-width: min(280px, 80vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-card);
+  color: var(--color-foreground);
+  box-shadow: 0 4px 16px rgb(15 23 42 / 0.2);
+  text-align: left;
+  transform: translate(16px, 16px);
+}
+
+.pin-popover.flip {
+  transform: translate(calc(-100% - 16px), 16px);
+}
+
+.pin-popover-reply {
+  margin: var(--space-2) 0 0 var(--space-3);
+}
+
 .comments {
   width: 320px;
   flex-shrink: 0;

@@ -53,7 +53,31 @@ const BRIDGE = `(function () {
     return Math.min(1, Math.max(0, v));
   }
 
+  function pinOf(t) {
+    for (var i = 0; i < drawn.length; i++) {
+      if (drawn[i].el === t) return drawn[i];
+    }
+    return null;
+  }
+
   function onClick(e) {
+    var hit = pinOf(e.target);
+    if (hit) {
+      e.preventDefault();
+      e.stopPropagation();
+      var pr = hit.el.getBoundingClientRect();
+      parent.postMessage(
+        {
+          type: "pin-click",
+          id: hit.id,
+          x: pr.left + pr.width / 2,
+          y: pr.top + pr.height / 2,
+        },
+        "*"
+      );
+      return;
+    }
+    parent.postMessage({ type: "pin-close" }, "*");
     if (mode !== "comment") return;
     e.preventDefault();
     e.stopPropagation();
@@ -75,7 +99,7 @@ const BRIDGE = `(function () {
 
   function draw() {
     drawn.forEach(function (d) {
-      d.remove();
+      d.el.remove();
     });
     drawn = [];
     pins.forEach(function (p) {
@@ -90,14 +114,14 @@ const BRIDGE = `(function () {
       var d = document.createElement("div");
       d.textContent = String(p.n);
       d.style.cssText =
-        "position:absolute;z-index:2147483647;pointer-events:none;margin:0;padding:0;" +
+        "position:absolute;z-index:2147483647;pointer-events:auto;cursor:pointer;margin:0;padding:0;" +
         "box-sizing:border-box;width:24px;height:24px;border-radius:50%;background:" + (p.resolved ? "#475569" : "#c93036") + ";" +
         "color:#fff;font:12px/24px Arial,sans-serif;text-align:center;" +
         "transform:translate(-50%,-50%);font-weight:700;" +
         "left:" + (r.left + window.scrollX + p.relX * r.width) + "px;" +
         "top:" + (r.top + window.scrollY + p.relY * r.height) + "px;";
       document.documentElement.appendChild(d);
-      drawn.push(d);
+      drawn.push({ el: d, id: p.id });
     });
   }
 
@@ -132,6 +156,12 @@ const BRIDGE = `(function () {
     }
   });
   window.addEventListener("click", onClick, true);
+  window.addEventListener("scroll", function () {
+    parent.postMessage({ type: "pin-close" }, "*");
+  }, true);
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") parent.postMessage({ type: "pin-close" }, "*");
+  });
   window.addEventListener("resize", draw);
   window.addEventListener("load", draw);
   parent.postMessage({ type: "bridge-ready" }, "*");

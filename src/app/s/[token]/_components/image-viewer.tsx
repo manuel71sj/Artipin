@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { type CommentItem, CommentPanel, type ImagePin } from "./comment-panel";
 import { ModeToggle } from "./mode-toggle";
+import { PinPopover } from "./pin-popover";
 
 export function ImageViewer({
   src,
@@ -19,6 +20,8 @@ export function ImageViewer({
 }) {
   const [commentMode, setCommentMode] = useState(false);
   const [pending, setPending] = useState<ImagePin | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const opened = items.find((c) => c.id === openId && c.pin);
 
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
@@ -92,16 +95,31 @@ export function ImageViewer({
           />
           {items.map((c) =>
             c.pin ? (
-              <span
+              <button
                 key={c.id}
-                className={c.resolved ? "pin resolved" : "pin"}
+                type="button"
+                data-pin
+                className={
+                  c.resolved ? "pin pin-button resolved" : "pin pin-button"
+                }
                 style={{ left: `${c.pin.x * 100}%`, top: `${c.pin.y * 100}%` }}
-                aria-hidden="true"
+                aria-label={`핀 ${c.pinNo} 댓글 보기`}
+                aria-expanded={openId === c.id}
+                onClick={() => setOpenId(openId === c.id ? null : c.id)}
               >
                 {c.pinNo}
-              </span>
+              </button>
             ) : null,
           )}
+          {opened?.pin ? (
+            <PinPopover
+              item={opened}
+              left={`${opened.pin.x * 100}%`}
+              top={`${opened.pin.y * 100}%`}
+              flip={opened.pin.x > 0.5}
+              onClose={() => setOpenId(null)}
+            />
+          ) : null}
           {pending ? (
             <span
               className="pin pending"

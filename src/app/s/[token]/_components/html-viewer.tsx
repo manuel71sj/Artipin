@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommentItem, CommentPanel, type HtmlPin } from "./comment-panel";
 import { ModeToggle } from "./mode-toggle";
+import { PinPopover } from "./pin-popover";
 
 const BRIDGE_TIMEOUT_MS = 3000;
 
@@ -15,10 +16,23 @@ function parseMessage(
 ):
   | { type: "bridge-ready" }
   | { type: "anchor-picked"; anchor: HtmlPin }
+  | { type: "pin-click"; id: number; x: number; y: number }
+  | { type: "pin-close" }
   | null {
   if (typeof data !== "object" || data === null) return null;
   const d = data as Record<string, unknown>;
   if (d.type === "bridge-ready") return { type: "bridge-ready" };
+  if (d.type === "pin-close") return { type: "pin-close" };
+  if (
+    d.type === "pin-click" &&
+    typeof d.id === "number" &&
+    typeof d.x === "number" &&
+    Number.isFinite(d.x) &&
+    typeof d.y === "number" &&
+    Number.isFinite(d.y)
+  ) {
+    return { type: "pin-click", id: d.id, x: d.x, y: d.y };
+  }
   if (
     d.type === "anchor-picked" &&
     typeof d.selector === "string" &&
@@ -59,6 +73,14 @@ export function HtmlViewer({
   const [timedOut, setTimedOut] = useState(false);
   const [commentMode, setCommentMode] = useState(false);
   const [pending, setPending] = useState<HtmlPin | null>(null);
+  // x·y는 iframe 안 뷰포트 좌표(브리지가 핀 중심을 보낸다). 박스 본문은 부모가 가진 댓글에서 id로 찾는다.
+  const [open, setOpen] = useState<{
+    id: number;
+    x: number;
+    y: number;
+    flip: boolean;
+  } | null>(null);
+  const opened = open ? items.find((c) => c.id === open.id && c.htmlPin) : null;
 
   const pins = useMemo(
     () =>
@@ -86,6 +108,14 @@ export function HtmlViewer({
       const msg = parseMessage(e.data);
       if (!msg) return;
       if (msg.type === "bridge-ready") setReadySeq((n) => n + 1);
+      else if (msg.type === "pin-close") setOpen(null);
+      else if (msg.type === "pin-click")
+        setOpen({
+          id: msg.id,
+          x: msg.x,
+          y: msg.y,
+          flip: msg.x > (iframeRef.current?.clientWidth ?? 0) / 2,
+        });
       else setPending(msg.anchor);
     }
     window.addEventListener("message", onMessage);
@@ -138,16 +168,27 @@ export function HtmlViewer({
             선택한 위치: <code translate="no">{pending.selector}</code>
           </p>
         ) : null}
-        {listening ? (
-          <iframe
-            ref={iframeRef}
-            className="html-frame"
-            title="업로드된 HTML"
-            sandbox="allow-scripts"
-            src={src}
-            onLoad={() => setLoaded(true)}
-          />
-        ) : null}
+        <div className="html-stage">
+          {listening ? (
+            <iframe
+              ref={iframeRef}
+              className="html-frame"
+              title="업로드된 HTML"
+              sandbox="allow-scripts"
+              src={src}
+              onLoad={() => setLoaded(true)}
+            />
+          ) : null}
+          {opened && open ? (
+            <PinPopover
+              item={opened}
+              left={`${open.x}px`}
+              top={`${open.y}px`}
+              flip={open.flip}
+              onClose={() => setOpen(null)}
+            />
+          ) : null}
+        </div>
       </section>
       <CommentPanel
         token={token}
