@@ -515,11 +515,6 @@ label,
   margin-bottom: var(--space-2);
 }
 
-.pending-anchor {
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
-}
-
 .html-frame {
   display: block;
   width: 100%;

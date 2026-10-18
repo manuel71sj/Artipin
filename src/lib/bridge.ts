@@ -5,6 +5,9 @@ const BRIDGE = `(function () {
   var mode = "browse";
   var pins = [];
   var drawn = [];
+  var boxes = [];
+  var pickedSel = null;
+  var hoverEl = null;
   var MAX = 500;
 
   function uniqueId(el) {
@@ -51,6 +54,41 @@ const BRIDGE = `(function () {
 
   function clamp(v) {
     return Math.min(1, Math.max(0, v));
+  }
+
+  function find(selector) {
+    try {
+      return document.querySelector(selector);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function addBox(el, color, style) {
+    var r = el.getBoundingClientRect();
+    var b = document.createElement("div");
+    b.style.cssText =
+      "position:absolute;z-index:2147483646;pointer-events:none;margin:0;padding:0;box-sizing:border-box;" +
+      "border:2px " + style + " " + color + ";" +
+      "left:" + (r.left + window.scrollX) + "px;top:" + (r.top + window.scrollY) + "px;" +
+      "width:" + r.width + "px;height:" + r.height + "px;";
+    document.documentElement.appendChild(b);
+    boxes.push(b);
+  }
+
+  function paint() {
+    boxes.forEach(function (b) {
+      b.remove();
+    });
+    boxes = [];
+    if (mode !== "comment") return;
+    pins.forEach(function (p) {
+      var el = find(p.selector);
+      if (el) addBox(el, p.resolved ? "#475569" : "#c93036", "solid");
+    });
+    var picked = pickedSel ? find(pickedSel) : null;
+    if (picked) addBox(picked, "#2563eb", "solid");
+    if (hoverEl && hoverEl !== picked) addBox(hoverEl, "#2563eb", "dashed");
   }
 
   function pinOf(t) {
@@ -103,12 +141,7 @@ const BRIDGE = `(function () {
     });
     drawn = [];
     pins.forEach(function (p) {
-      var el = null;
-      try {
-        el = document.querySelector(p.selector);
-      } catch (e) {
-        el = null;
-      }
+      var el = find(p.selector);
       if (!el) return;
       var r = el.getBoundingClientRect();
       var d = document.createElement("div");
@@ -123,6 +156,7 @@ const BRIDGE = `(function () {
       document.documentElement.appendChild(d);
       drawn.push({ el: d, id: p.id });
     });
+    paint();
   }
 
   function validPins(a) {
@@ -149,6 +183,15 @@ const BRIDGE = `(function () {
     if (!d || typeof d !== "object") return;
     if (d.type === "mode") {
       if (d.mode === "browse" || d.mode === "comment") mode = d.mode;
+      if (mode !== "comment") {
+        pickedSel = null;
+        hoverEl = null;
+      }
+      paint();
+    } else if (d.type === "pending") {
+      if (d.selector !== null && typeof d.selector !== "string") return;
+      pickedSel = d.selector;
+      paint();
     } else if (d.type === "render-pins") {
       if (!validPins(d.pins)) return;
       pins = d.pins;
@@ -156,6 +199,15 @@ const BRIDGE = `(function () {
     }
   });
   window.addEventListener("click", onClick, true);
+  window.addEventListener("mouseover", function (e) {
+    var t = e.target;
+    hoverEl = t && t.nodeType === 1 && !pinOf(t) ? t : null;
+    if (mode === "comment") paint();
+  }, true);
+  document.documentElement.addEventListener("mouseleave", function () {
+    hoverEl = null;
+    if (mode === "comment") paint();
+  });
   window.addEventListener("scroll", function () {
     parent.postMessage({ type: "pin-close" }, "*");
   }, true);

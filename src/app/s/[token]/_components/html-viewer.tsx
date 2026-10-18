@@ -145,6 +145,14 @@ export function HtmlViewer({
       );
   }, [readySeq, pins]);
 
+  useEffect(() => {
+    if (readySeq > 0)
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: "pending", selector: pending?.selector ?? null },
+        "*",
+      );
+  }, [readySeq, pending]);
+
   function setMode(comment: boolean) {
     setCommentMode(comment);
     if (!comment) setPending(null);
@@ -161,11 +169,6 @@ export function HtmlViewer({
         {timedOut && !bridgeReady ? (
           <p className="viewer-note">
             이 파일은 핀 댓글을 지원하지 않을 수 있습니다.
-          </p>
-        ) : null}
-        {pending ? (
-          <p className="viewer-note pending-anchor" aria-live="polite">
-            선택한 위치: <code translate="no">{pending.selector}</code>
           </p>
         ) : null}
         <div className="html-stage">
