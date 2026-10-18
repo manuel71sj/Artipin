@@ -3,15 +3,21 @@
 import { useEffect, useRef } from "react";
 import type { CommentItem, ReplyItem } from "./comment-panel";
 
-function Entry({ c }: { c: ReplyItem }) {
+function Entry({ c, state }: { c: ReplyItem; state?: string }) {
   return (
-    <>
-      <p className="comment-meta">
-        <strong>{c.authorName}</strong>
-        {c.isOwner ? " (소유자)" : ""} · {c.createdLabel}
+    <div className="pin-popover-entry">
+      <p className="pin-popover-meta">
+        <span>
+          <strong>{c.authorName}</strong>
+          {c.isOwner ? " (소유자)" : ""}
+        </span>
+        <span className="pin-popover-time">
+          {c.createdLabel}
+          {state ? ` · ${state}` : ""}
+        </span>
       </p>
-      <p className="comment-body">{c.body}</p>
-    </>
+      <p className="pin-popover-body">{c.body}</p>
+    </div>
   );
 }
 
@@ -52,12 +58,17 @@ export function PinPopover({
   return (
     <div
       ref={ref}
-      className={flip ? "pin-popover flip" : "pin-popover"}
+      className={`pin-popover${flip ? " flip" : ""}${item.resolved ? " resolved" : ""}`}
       style={{ left, top }}
       role="dialog"
       aria-label={`핀 ${item.pinNo} 댓글`}
     >
-      <Entry c={item} />
+      <div className="pin-popover-row">
+        <span className="pin-popover-badge" aria-hidden="true">
+          {item.pinNo}
+        </span>
+        <Entry c={item} state={item.resolved ? "해결됨" : undefined} />
+      </div>
       {item.replies.map((r) => (
         <div key={r.id} className="pin-popover-reply">
           <Entry c={r} />

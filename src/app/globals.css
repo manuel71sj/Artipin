@@ -264,29 +264,107 @@ label,
   position: relative;
 }
 
+/* 댓글 박스: 핀에 꽂힌 메모 한 장. 그림자·둥근 카드 없이 테두리와 핀 색 윗선만 쓴다.
+   위치는 translate로, 도착 모션은 transform으로 나눠 서로 덮어쓰지 않게 한다. */
 .pin-popover {
+  --popover-rule: var(--color-pin);
   position: absolute;
   z-index: 5;
   width: max-content;
-  max-width: min(280px, 80vw);
+  max-width: min(320px, 80vw);
   max-height: 60vh;
   overflow-y: auto;
   padding: var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-foreground);
+  border-top: 2px solid var(--popover-rule);
   border-radius: var(--radius);
   background: var(--color-card);
   color: var(--color-foreground);
-  box-shadow: 0 4px 16px rgb(15 23 42 / 0.2);
   text-align: left;
-  transform: translate(16px, 16px);
+  translate: 14px 14px;
+  transform-origin: top left;
+  animation: pin-popover-in var(--duration-slow) var(--ease-out);
 }
 
 .pin-popover.flip {
-  transform: translate(calc(-100% - 16px), 16px);
+  translate: calc(-100% - 14px) 14px;
+  transform-origin: top right;
 }
 
+.pin-popover.resolved {
+  --popover-rule: var(--color-pin-resolved);
+}
+
+@keyframes pin-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* 열린 박스의 핀을 표시한다 */
+.pin-button[aria-expanded="true"] {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: 2px;
+}
+
+.pin-popover-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+/* 화면의 핀과 같은 점. 박스를 읽는 것이 곧 핀을 읽는 것이 되게 한다 */
+.pin-popover-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--popover-rule);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+}
+
+.pin-popover-meta {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.pin-popover-time {
+  color: var(--color-muted-foreground);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.pin-popover-body {
+  margin-top: var(--space-2);
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 답글은 같은 왼쪽 선에서 시작하고, 핀 점의 오른쪽 끝에 맞춘 2px 선으로 스레드를 보인다 */
 .pin-popover-reply {
-  margin: var(--space-2) 0 0 var(--space-3);
+  margin: var(--space-3) 0 0 24px;
+  padding-left: 6px;
+  border-left: 2px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-popover {
+    animation-name: pin-popover-fade;
+  }
+
+  @keyframes pin-popover-fade {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 .comments {
