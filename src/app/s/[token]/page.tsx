@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
+import { readVisitorId } from "@/lib/visitor";
 import type { CommentItem } from "./_components/comment-panel";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
@@ -30,6 +31,9 @@ export default async function SharePage({
 
   const session = await auth();
   const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
+  // 쿠키가 httpOnly라 삭제 가능 여부는 서버에서 계산한다.
+  const visitorId = await readVisitorId();
+  const can = (v: string) => isOwner || (visitorId !== null && v === visitorId);
 
   const rows = await db
     .select()
@@ -66,6 +70,7 @@ export default async function SharePage({
         isOwner: c.isOwner,
         body: c.body,
         createdLabel: label(c.createdAt),
+        canDelete: can(c.visitorId),
         resolved: c.resolvedAt !== null,
         pin,
         htmlPin,
@@ -78,6 +83,7 @@ export default async function SharePage({
             isOwner: r.isOwner,
             body: r.body,
             createdLabel: label(r.createdAt),
+            canDelete: can(r.visitorId),
           })),
       };
     });

@@ -327,6 +327,38 @@ label,
   text-align: center;
 }
 
+/* 작성자·시각 블록 오른쪽에 삭제 버튼을 둔다 */
+.pin-popover-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pin-popover-delete {
+  flex-shrink: 0;
+  min-height: 24px;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.pin-popover-delete:hover {
+  color: var(--color-destructive);
+  text-decoration: underline;
+}
+
+.pin-popover-error {
+  margin-top: var(--space-2);
+  color: var(--color-destructive);
+  font-size: var(--text-sm);
+}
+
 .pin-popover-meta {
   display: flex;
   flex-direction: column;

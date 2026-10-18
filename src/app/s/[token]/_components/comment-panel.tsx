@@ -9,6 +9,7 @@ export type ReplyItem = {
   isOwner: boolean;
   body: string;
   createdLabel: string;
+  canDelete: boolean;
 };
 
 export type CommentItem = ReplyItem & {
