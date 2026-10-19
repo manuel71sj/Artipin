@@ -11,7 +11,7 @@ Artipin은 AI가 만든 HTML·이미지를 링크로 공유하고 화면 위에 
 패키지 매니저는 pnpm만 쓴다(npm/npx 금지).
 
 ```bash
-pnpm dev                              # http://app.localhost:3000 (APP_HOST/CONTENT_HOST는 .env.local)
+pnpm dev                              # http://app.localhost:3900 (APP_HOST/CONTENT_HOST는 .env.local)
 pnpm exec biome check src scripts     # lint+format 검사. 인자 없는 `pnpm lint`는 전역 gitignore로만 무시되는 로컬 도구 산출물(.omx/ 등)까지 검사해 실패할 수 있다
 pnpm exec tsc --noEmit
 pnpm build                            # output: standalone
