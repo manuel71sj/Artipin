@@ -41,7 +41,7 @@ pnpm metrics                          # scripts/metrics.sql 지표 출력
 - 이미지 뷰어는 브리지 없이 이미지 기준 상대 좌표(0~1)로 핀을 단다.
 
 ### 인증 (`src/auth.ts`)
-- Auth.js(next-auth 5 beta) JWT 세션. 제공자는 Google·Microsoft Entra ID(기본 issuer `common`)·GitHub, 도메인 제한 없음. Microsoft 제공자는 providers 배열에 함수 참조로 넣는다(인자 없이 호출하면 TypeError).
+- Auth.js(next-auth 5 beta) JWT 세션. 제공자는 Google·GitHub, 도메인 제한 없음.
 - 소유자는 `owners(provider, provider_account_id)` 유일 키로 식별한다. email은 표시용이며 식별·병합에 쓰지 않는다(미검증 email로 다른 소유자 행을 차지하는 경로를 막기 위해).
 - jwt 콜백이 로그인 시 owners를 upsert하고 `token.id = String(owners.id)`. 모든 호출부는 `session.user.id`(문자열)를 `Number()`로 owners.id와 비교한다. 세션은 DB와 대조하지 않으므로 owners 테이블을 재생성해 id가 재사용되면 `AUTH_SECRET`을 교체해야 한다.
 - 개발 전용 `dev-login` 제공자는 `process.env.NODE_ENV === "development"` 직접 비교로만 켠다. `next build`가 이 식을 `"production"`으로 인라인해 운영 산출물에서 빠진다. 런타임 env 플래그로 바꾸지 않는다.

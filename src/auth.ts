@@ -2,7 +2,6 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { db } from "@/db";
 import { owners } from "@/db/schema";
 
@@ -16,7 +15,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   providers: [
     Google,
-    MicrosoftEntraID,
     GitHub,
     ...(process.env.NODE_ENV === "development"
       ? [

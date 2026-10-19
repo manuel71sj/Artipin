@@ -16,18 +16,15 @@ pnpm dev
 | `AUTH_SECRET` | Auth.js 세션(JWT) 서명 키. `openssl rand -base64 32` 등으로 생성 |
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 클라이언트 시크릿 |
-| `AUTH_MICROSOFT_ENTRA_ID_ID` | Microsoft(Entra ID) 앱 등록의 클라이언트 ID |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Microsoft 앱 등록의 클라이언트 시크릿. `AUTH_MICROSOFT_ENTRA_ID_ISSUER`는 두지 않는다(기본 `common`이 개인·회사 계정을 모두 허용하고, `consumers`는 이 Auth.js 버전에서 issuer 검사에 실패한다) |
 | `AUTH_GITHUB_ID` | GitHub OAuth App 클라이언트 ID |
 | `AUTH_GITHUB_SECRET` | GitHub OAuth App 클라이언트 시크릿 |
 | `APP_HOST` | 소유자 화면 호스트(`host[:port]`, 예: `app.localhost:3000`). `localhost`가 포함되면 http, 아니면 https. 복사하는 공유 링크는 이 값이 아니라 접속 중인 주소를 쓴다 |
 | `DATA_DIR` | SQLite(`app.db`)와 `uploads/`를 두는 디렉터리. 기본 `./data`, 컨테이너 이미지는 `/data` |
 | `CONTENT_HOST` | 업로드 본문 서빙 호스트(`host[:port]`, 예: `content.localhost:3000`). `APP_HOST`와 다른 값이어야 하며, 이 호스트는 `/c/*`만 응답한다 |
 
-로그인은 Google·Microsoft·GitHub 개인 계정을 쓰며 도메인·테넌트 제한은 없다. 제공자별 콜백 URL은 `{APP_HOST 기준 origin}/api/auth/callback/{google|microsoft-entra-id|github}`다(`APP_HOST`에 `localhost`가 포함되면 `http://`, 아니면 `https://`).
+로그인은 Google·GitHub 개인 계정을 쓰며 도메인 제한은 없다. 제공자별 콜백 URL은 `{APP_HOST 기준 origin}/api/auth/callback/{google|github}`다(`APP_HOST`에 `localhost`가 포함되면 `http://`, 아니면 `https://`).
 
 - Google: OAuth 동의 화면을 External로 두고 게시 상태를 "In production"으로 한다(Testing이면 등록된 테스트 사용자만 로그인된다).
-- Microsoft: 앱 등록의 지원 계정 유형을 "모든 조직 디렉터리 + 개인 Microsoft 계정"으로 한다.
 - GitHub: OAuth App은 콜백 URL이 하나뿐이므로 로컬용과 배포용 앱을 따로 등록한다.
 
 `next start`가 아닌 배포(컨테이너·프록시 뒤)에서는 `AUTH_TRUST_HOST=true`가 필요하다. 이 값이 없으면 로그인 세션이 인식되지 않는다.
@@ -41,7 +38,6 @@ docker build -t artipin .
 docker run -d --name artipin -p 3000:3000 -v artipin-data:/data \
   -e APP_HOST=app.example.com -e CONTENT_HOST=content.example.com \
   -e AUTH_SECRET=... -e AUTH_GOOGLE_ID=... -e AUTH_GOOGLE_SECRET=... \
-  -e AUTH_MICROSOFT_ENTRA_ID_ID=... -e AUTH_MICROSOFT_ENTRA_ID_SECRET=... \
   -e AUTH_GITHUB_ID=... -e AUTH_GITHUB_SECRET=... -e AUTH_TRUST_HOST=true \
   artipin
 ```

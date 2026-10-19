@@ -19,16 +19,6 @@ export default function LoginPage() {
         <form
           action={async () => {
             "use server";
-            await signIn("microsoft-entra-id", { redirectTo: "/" });
-          }}
-        >
-          <button type="submit" className={styles.button}>
-            Microsoft로 로그인
-          </button>
-        </form>
-        <form
-          action={async () => {
-            "use server";
             await signIn("github", { redirectTo: "/" });
           }}
         >
