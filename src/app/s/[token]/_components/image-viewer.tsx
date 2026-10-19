@@ -113,6 +113,8 @@ export function ImageViewer({
           )}
           {opened?.pin ? (
             <PinPopover
+              key={opened.id}
+              token={token}
               item={opened}
               left={`${opened.pin.x * 100}%`}
               top={`${opened.pin.y * 100}%`}

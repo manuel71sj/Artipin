@@ -353,6 +353,41 @@ label,
   text-decoration: underline;
 }
 
+/* 답글 열기: 삭제 버튼과 같은 텍스트 버튼. 본문 왼쪽 끝(핀 점 오른쪽)에 맞춘다 */
+.pin-popover-action {
+  min-height: 32px;
+  margin: var(--space-1) 0 0 24px;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.pin-popover-action:hover {
+  color: var(--color-foreground);
+  text-decoration: underline;
+}
+
+/* 답글 폼: 답글과 같은 스레드 선 아래에서 시작한다 */
+.pin-popover-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0 24px;
+  padding-left: 6px;
+  border-left: 2px solid var(--popover-rule);
+}
+
+.pin-popover-form-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 .pin-popover-error {
   margin-top: var(--space-2);
   color: var(--color-destructive);
@@ -530,13 +565,25 @@ label,
 }
 
 .reply-note {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  gap: 0 var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-muted-foreground);
+}
+
+/* 답글 대상의 본문을 두 줄까지 인용해 무엇에 답하는지 보인다 */
+.reply-quote {
+  grid-column: 1 / -1;
+  margin-top: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--color-border);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 
 /* 라벨을 입력칸 왼쪽에 두어 세로를 줄인다. 라벨은 그대로 보인다 */
@@ -555,7 +602,9 @@ label,
 }
 
 .comments input,
-.comments textarea {
+.comments textarea,
+.pin-popover-form input,
+.pin-popover-form textarea {
   width: 100%;
   padding: 6px var(--space-2);
   border: 1px solid var(--color-border);
@@ -568,7 +617,8 @@ label,
   line-height: 1.4;
 }
 
-.comments textarea {
+.comments textarea,
+.pin-popover-form textarea {
   resize: vertical;
 }
 
@@ -605,7 +655,8 @@ label,
 }
 
 /* 댓글 모음의 버튼: 목록 안에 줄지어 서므로 32px 한 가지 크기(핀 박스의 인라인 버튼과 같은 결) */
-.comments button {
+.comments button,
+.pin-popover-form button {
   min-height: 32px;
   padding: 0 var(--space-2);
   border: 1px solid transparent;
@@ -628,31 +679,36 @@ label,
     border-color: var(--color-primary);
   }
 
-  .comments button:hover:not(:disabled) {
+  .comments button:hover:not(:disabled),
+  .pin-popover-form button:hover:not(:disabled) {
     background: var(--color-muted);
     color: var(--color-foreground);
   }
 }
 
 .comments button:active:not(:disabled),
+.pin-popover-form button:active:not(:disabled),
 .mode-toggle button:active:not(:disabled) {
   transform: scale(0.97);
 }
 
 .comments button:disabled,
+.pin-popover-form button:disabled,
 .mode-toggle button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .mode-toggle button[aria-pressed="true"],
-.comments button[type="submit"] {
+.comments button[type="submit"],
+.pin-popover-form button[type="submit"] {
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-on-primary);
 }
 
-.comments button[type="submit"] {
+.comments button[type="submit"],
+.pin-popover-form button[type="submit"] {
   min-height: 36px;
   padding: 0 var(--space-3);
 }
@@ -669,7 +725,8 @@ label,
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .comments button[type="submit"]:hover:not(:disabled) {
+  .comments button[type="submit"]:hover:not(:disabled),
+  .pin-popover-form button[type="submit"]:hover:not(:disabled) {
     border-color: var(--color-secondary);
     background: var(--color-secondary);
     color: var(--color-on-primary);
@@ -702,6 +759,7 @@ label,
 
 @media (prefers-reduced-motion: reduce) {
   .comments button:active:not(:disabled),
+  .pin-popover-form button:active:not(:disabled),
   .mode-toggle button:active:not(:disabled) {
     transform: none;
   }

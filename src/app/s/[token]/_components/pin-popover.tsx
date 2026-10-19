@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { CommentItem, ReplyItem } from "./comment-panel";
 
+const NAME_KEY = "artipin:name";
+
 function Entry({
   c,
   state,
@@ -45,12 +47,14 @@ function Entry({
 // 핀을 누르면 그 핀의 댓글을 핀 옆에 박스로 보여 준다. left/top은 박스를 놓는 기준 좌표(CSS 값).
 // 박스·핀 바깥을 누르거나 Esc를 누르면 닫는다. iframe 안의 클릭은 브리지가 pin-close로 알려 준다.
 export function PinPopover({
+  token,
   item,
   left,
   top,
   flip,
   onClose,
 }: {
+  token: string;
   item: CommentItem;
   left: string;
   top: string;
@@ -64,6 +68,22 @@ export function PinPopover({
     itemId: number;
     message: string;
   } | null>(null);
+  const [replying, setReplying] = useState(false);
+  const [name, setName] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setName(localStorage.getItem(NAME_KEY) ?? "");
+  }, []);
+
+  // 폼을 열면 비어 있는 첫 칸으로 포커스를 옮긴다
+  useEffect(() => {
+    if (!replying) return;
+    (nameRef.current?.value ? bodyRef : nameRef).current?.focus();
+  }, [replying]);
 
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
@@ -97,6 +117,31 @@ export function PinPopover({
     });
   }
 
+  async function submitReply(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/s/${token}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author_name: name, body, parentId: item.id }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError({
+        itemId: item.id,
+        message:
+          ((await res.json().catch(() => null)) as { error?: string } | null)
+            ?.error ?? "답글을 작성하지 못했습니다. 잠시 후 다시 시도하세요.",
+      });
+      return;
+    }
+    localStorage.setItem(NAME_KEY, name.trim());
+    setBody("");
+    setReplying(false);
+    router.refresh();
+  }
+
   return (
     <div
       ref={ref}
@@ -120,6 +165,51 @@ export function PinPopover({
           <Entry c={r} onDelete={() => remove(r.id)} />
         </div>
       ))}
+      {replying ? (
+        <form className="pin-popover-form" onSubmit={submitReply}>
+          <label className="field">
+            <span>이름</span>
+            <input
+              ref={nameRef}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="nickname"
+              spellCheck={false}
+              maxLength={50}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>답글</span>
+            <textarea
+              ref={bodyRef}
+              autoComplete="off"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              maxLength={2000}
+              rows={2}
+              required
+            />
+          </label>
+          <div className="pin-popover-form-foot">
+            <button type="button" onClick={() => setReplying(false)}>
+              취소
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "작성 중…" : "답글 작성"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          className="pin-popover-action"
+          aria-label={`${item.authorName}님의 댓글에 답글`}
+          onClick={() => setReplying(true)}
+        >
+          답글
+        </button>
+      )}
       {error?.itemId === item.id ? (
         <p role="alert" className="pin-popover-error">
           {error.message}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type ReplyItem = {
   id: number;
@@ -108,6 +108,7 @@ export function CommentPanel({
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setName(localStorage.getItem(NAME_KEY) ?? "");
@@ -174,7 +175,10 @@ export function CommentPanel({
               <button
                 type="button"
                 aria-label={`${c.authorName}님의 댓글에 답글`}
-                onClick={() => setReplyTo(c)}
+                onClick={() => {
+                  setReplyTo(c);
+                  bodyRef.current?.focus();
+                }}
               >
                 답글
               </button>
@@ -205,12 +209,13 @@ export function CommentPanel({
 
       <form onSubmit={submit}>
         {replyTo ? (
-          <p className="reply-note">
-            {replyTo.authorName}님의 댓글에 답글
+          <div className="reply-note">
+            <p>{replyTo.authorName}님의 댓글에 답글</p>
             <button type="button" onClick={() => setReplyTo(null)}>
               취소
             </button>
-          </p>
+            <p className="reply-quote">{replyTo.body}</p>
+          </div>
         ) : pending ? (
           <p className="reply-note" aria-live="polite">
             핀 위치에 댓글을 남깁니다.
@@ -232,6 +237,7 @@ export function CommentPanel({
           <span>댓글</span>
           <textarea
             name="body"
+            ref={bodyRef}
             autoComplete="off"
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -243,7 +249,7 @@ export function CommentPanel({
         <div className="comment-foot">
           {error ? <p role="alert">{error}</p> : null}
           <button type="submit" disabled={busy}>
-            {busy ? "작성 중…" : "댓글 작성"}
+            {busy ? "작성 중…" : replyTo ? "답글 작성" : "댓글 작성"}
           </button>
         </div>
       </form>

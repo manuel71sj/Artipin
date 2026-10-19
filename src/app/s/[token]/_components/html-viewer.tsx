@@ -184,6 +184,8 @@ export function HtmlViewer({
           ) : null}
           {opened && open ? (
             <PinPopover
+              key={opened.id}
+              token={token}
               item={opened}
               left={`${open.x}px`}
               top={`${open.y}px`}
