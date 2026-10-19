@@ -31,12 +31,31 @@ export type PendingPin = ImagePin | HtmlPin;
 
 const NAME_KEY = "artipin:name";
 
-function Author({ c }: { c: ReplyItem }) {
+// 머리 줄: 핀 점, 작성자·시각, 오른쪽 끝에 삭제 아이콘. 핀 점은 장식이라 글로 따로 읽어 준다.
+function Head({
+  c,
+  pinNo,
+  onDelete,
+}: {
+  c: ReplyItem;
+  pinNo?: number | null;
+  onDelete: () => void;
+}) {
   return (
-    <p className="comment-meta">
-      <strong>{c.authorName}</strong>
-      {c.isOwner ? " (소유자)" : ""} · {c.createdLabel}
-    </p>
+    <div className="comment-head">
+      {pinNo != null ? (
+        <span className="comment-pin" aria-hidden="true">
+          {pinNo}
+        </span>
+      ) : null}
+      <p className="comment-meta">
+        {pinNo != null ? <span className="sr-only">핀 {pinNo}, </span> : null}
+        <strong>{c.authorName}</strong>
+        {c.isOwner ? <span className="comment-sub"> (소유자)</span> : null}{" "}
+        <span className="comment-sub comment-time">{c.createdLabel}</span>
+      </p>
+      {c.canDelete ? <DeleteButton c={c} onClick={onDelete} /> : null}
+    </div>
   );
 }
 
@@ -50,8 +69,8 @@ function DeleteButton({ c, onClick }: { c: ReplyItem; onClick: () => void }) {
       onClick={onClick}
     >
       <svg
-        width="20"
-        height="20"
+        width="16"
+        height="16"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -149,11 +168,8 @@ export function CommentPanel({
       <ul>
         {items.map((c) => (
           <li key={c.id} className={c.resolved ? "resolved" : undefined}>
-            <Author c={c} />
-            <p className="comment-body">
-              {c.pinNo !== null ? `[${c.pinNo}] ` : ""}
-              {c.body}
-            </p>
+            <Head c={c} pinNo={c.pinNo} onDelete={() => remove(c.id)} />
+            <p className="comment-body">{c.body}</p>
             <div className="comment-actions">
               <button
                 type="button"
@@ -172,21 +188,13 @@ export function CommentPanel({
                 </button>
               ) : null}
               {c.resolved ? <span>해결됨</span> : null}
-              {c.canDelete ? (
-                <DeleteButton c={c} onClick={() => remove(c.id)} />
-              ) : null}
             </div>
             {c.replies.length > 0 ? (
               <ul className="replies">
                 {c.replies.map((r) => (
                   <li key={r.id}>
-                    <Author c={r} />
+                    <Head c={r} onDelete={() => remove(r.id)} />
                     <p className="comment-body">{r.body}</p>
-                    {r.canDelete ? (
-                      <div className="comment-actions">
-                        <DeleteButton c={r} onClick={() => remove(r.id)} />
-                      </div>
-                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -204,7 +212,9 @@ export function CommentPanel({
             </button>
           </p>
         ) : pending ? (
-          <p aria-live="polite">핀 위치에 댓글을 남깁니다.</p>
+          <p className="reply-note" aria-live="polite">
+            핀 위치에 댓글을 남깁니다.
+          </p>
         ) : null}
         <label className="field">
           <span>이름</span>
@@ -226,14 +236,16 @@ export function CommentPanel({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             maxLength={2000}
-            rows={3}
+            rows={2}
             required
           />
         </label>
-        {error ? <p role="alert">{error}</p> : null}
-        <button type="submit" disabled={busy}>
-          {busy ? "작성 중…" : "댓글 작성"}
-        </button>
+        <div className="comment-foot">
+          {error ? <p role="alert">{error}</p> : null}
+          <button type="submit" disabled={busy}>
+            {busy ? "작성 중…" : "댓글 작성"}
+          </button>
+        </div>
       </form>
     </aside>
   );

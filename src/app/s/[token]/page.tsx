@@ -11,8 +11,15 @@ import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
 import { ViewBeacon } from "./_components/view-beacon";
 
+// 댓글 머리 줄에 한 줄로 들어가도록 연도와 초는 뺀다
 const label = (ms: number) =>
-  new Date(ms).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+  new Date(ms).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export default async function SharePage({
   params,
