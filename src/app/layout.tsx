@@ -40,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ko"
       className={`${display.variable} ${latin.variable} ${hangul.variable}`}
+      suppressHydrationWarning
     >
       <body>
         <a className="skip-link" href="#main">
