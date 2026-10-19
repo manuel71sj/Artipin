@@ -95,12 +95,14 @@ export function CommentPanel({
   isOwner,
   pending,
   onSubmitted,
+  onSelect,
 }: {
   token: string;
   items: CommentItem[];
   isOwner: boolean;
   pending?: PendingPin | null;
   onSubmitted?: () => void;
+  onSelect: (c: CommentItem) => void;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -170,7 +172,18 @@ export function CommentPanel({
         {items.map((c) => (
           <li key={c.id} className={c.resolved ? "resolved" : undefined}>
             <Head c={c} pinNo={c.pinNo} onDelete={() => remove(c.id)} />
-            <p className="comment-body">{c.body}</p>
+            {c.pin || c.htmlPin ? (
+              <button
+                type="button"
+                className="comment-body comment-body-pin"
+                title="핀 위치로 이동"
+                onClick={() => onSelect(c)}
+              >
+                {c.body}
+              </button>
+            ) : (
+              <p className="comment-body">{c.body}</p>
+            )}
             <div className="comment-actions">
               <button
                 type="button"

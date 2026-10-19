@@ -25,6 +25,12 @@ export function ImageViewer({
 
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
+  function scrollToPin(c: CommentItem) {
+    document
+      .getElementById(`pin-${c.id}`)
+      ?.scrollIntoView({ block: "center", inline: "center" });
+  }
+
   function place(e: React.MouseEvent<HTMLImageElement>) {
     if (!commentMode) return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -97,6 +103,7 @@ export function ImageViewer({
             c.pin ? (
               <button
                 key={c.id}
+                id={`pin-${c.id}`}
                 type="button"
                 data-pin
                 className={
@@ -142,6 +149,7 @@ export function ImageViewer({
         isOwner={isOwner}
         pending={pending}
         onSubmitted={() => setPending(null)}
+        onSelect={scrollToPin}
       />
     </>
   );

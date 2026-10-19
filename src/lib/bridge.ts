@@ -196,6 +196,11 @@ const BRIDGE = `(function () {
       if (!validPins(d.pins)) return;
       pins = d.pins;
       draw();
+    } else if (d.type === "scroll-to-pin") {
+      var hit = drawn.filter(function (x) {
+        return x.id === d.id;
+      })[0];
+      if (hit) hit.el.scrollIntoView({ block: "center", inline: "center" });
     }
   });
   window.addEventListener("click", onClick, true);

@@ -521,6 +521,18 @@ label,
   overflow-wrap: anywhere;
 }
 
+/* 핀이 있는 댓글의 본문은 클릭하면 그 핀으로 스크롤하는 버튼이다. 글자 왼쪽 끝이 다른 본문과 맞도록 안쪽 여백만큼 당긴다 */
+.comments .comment-body-pin {
+  display: block;
+  width: calc(100% + var(--space-2));
+  min-height: 0;
+  margin-left: calc(var(--space-2) * -1);
+  padding: 2px var(--space-2);
+  color: var(--color-foreground);
+  font-weight: 400;
+  text-align: left;
+}
+
 /* 해결된 댓글은 불투명도 대신 색으로 낮춘다(대비 유지). 핀 점도 회색으로 바뀐다 */
 .comment-meta strong,
 .comment-body {

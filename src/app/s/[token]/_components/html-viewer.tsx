@@ -158,6 +158,13 @@ export function HtmlViewer({
     if (!comment) setPending(null);
   }
 
+  function scrollToPin(c: CommentItem) {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "scroll-to-pin", id: c.id },
+      "*",
+    );
+  }
+
   return (
     <>
       <section className="viewer">
@@ -201,6 +208,7 @@ export function HtmlViewer({
         isOwner={isOwner}
         pending={pending}
         onSubmitted={() => setPending(null)}
+        onSelect={scrollToPin}
       />
     </>
   );
