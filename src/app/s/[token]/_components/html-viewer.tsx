@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommentItem, CommentPanel, type HtmlPin } from "./comment-panel";
 import { ModeToggle } from "./mode-toggle";
-import { PinPopover } from "./pin-popover";
+import { NewCommentPopover, PinPopover } from "./pin-popover";
 
 const BRIDGE_TIMEOUT_MS = 3000;
 
@@ -15,7 +15,7 @@ function parseMessage(
   data: unknown,
 ):
   | { type: "bridge-ready" }
-  | { type: "anchor-picked"; anchor: HtmlPin }
+  | { type: "anchor-picked"; anchor: HtmlPin; x: number; y: number }
   | { type: "pin-click"; id: number; x: number; y: number }
   | { type: "pin-close" }
   | null {
@@ -39,10 +39,16 @@ function parseMessage(
     d.selector.length >= 1 &&
     d.selector.length <= 500 &&
     isRel(d.relX) &&
-    isRel(d.relY)
+    isRel(d.relY) &&
+    typeof d.x === "number" &&
+    Number.isFinite(d.x) &&
+    typeof d.y === "number" &&
+    Number.isFinite(d.y)
   ) {
     return {
       type: "anchor-picked",
+      x: d.x,
+      y: d.y,
       anchor: {
         kind: "html",
         selector: d.selector,
@@ -72,7 +78,13 @@ export function HtmlViewer({
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [commentMode, setCommentMode] = useState(false);
-  const [pending, setPending] = useState<HtmlPin | null>(null);
+  // x·y는 클릭한 자리(iframe 안 뷰포트 좌표)로, 새 댓글 박스를 놓는 기준이다.
+  const [pending, setPending] = useState<{
+    anchor: HtmlPin;
+    x: number;
+    y: number;
+    flip: boolean;
+  } | null>(null);
   // x·y는 iframe 안 뷰포트 좌표(브리지가 핀 중심을 보낸다). 박스 본문은 부모가 가진 댓글에서 id로 찾는다.
   const [open, setOpen] = useState<{
     id: number;
@@ -108,15 +120,26 @@ export function HtmlViewer({
       const msg = parseMessage(e.data);
       if (!msg) return;
       if (msg.type === "bridge-ready") setReadySeq((n) => n + 1);
-      else if (msg.type === "pin-close") setOpen(null);
-      else if (msg.type === "pin-click")
+      else if (msg.type === "pin-close") {
+        setOpen(null);
+        setPending(null);
+      } else if (msg.type === "pin-click") {
+        setPending(null);
         setOpen({
           id: msg.id,
           x: msg.x,
           y: msg.y,
           flip: msg.x > (iframeRef.current?.clientWidth ?? 0) / 2,
         });
-      else setPending(msg.anchor);
+      } else {
+        setOpen(null);
+        setPending({
+          anchor: msg.anchor,
+          x: msg.x,
+          y: msg.y,
+          flip: msg.x > (iframeRef.current?.clientWidth ?? 0) / 2,
+        });
+      }
     }
     window.addEventListener("message", onMessage);
     setListening(true);
@@ -148,7 +171,7 @@ export function HtmlViewer({
   useEffect(() => {
     if (readySeq > 0)
       iframeRef.current?.contentWindow?.postMessage(
-        { type: "pending", selector: pending?.selector ?? null },
+        { type: "pending", selector: pending?.anchor.selector ?? null },
         "*",
       );
   }, [readySeq, pending]);
@@ -200,16 +223,19 @@ export function HtmlViewer({
               onClose={() => setOpen(null)}
             />
           ) : null}
+          {pending ? (
+            <NewCommentPopover
+              token={token}
+              anchor={pending.anchor}
+              left={`${pending.x}px`}
+              top={`${pending.y}px`}
+              flip={pending.flip}
+              onClose={() => setPending(null)}
+            />
+          ) : null}
         </div>
       </section>
-      <CommentPanel
-        token={token}
-        items={items}
-        isOwner={isOwner}
-        pending={pending}
-        onSubmitted={() => setPending(null)}
-        onSelect={scrollToPin}
-      />
+      <CommentPanel items={items} isOwner={isOwner} onSelect={scrollToPin} />
     </>
   );
 }

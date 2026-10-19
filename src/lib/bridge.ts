@@ -115,8 +115,10 @@ const BRIDGE = `(function () {
       );
       return;
     }
-    parent.postMessage({ type: "pin-close" }, "*");
-    if (mode !== "comment") return;
+    if (mode !== "comment") {
+      parent.postMessage({ type: "pin-close" }, "*");
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     var el = e.target;
@@ -130,6 +132,8 @@ const BRIDGE = `(function () {
         selector: selector,
         relX: r.width > 0 ? clamp((e.clientX - r.left) / r.width) : 0,
         relY: r.height > 0 ? clamp((e.clientY - r.top) / r.height) : 0,
+        x: e.clientX,
+        y: e.clientY,
       },
       "*"
     );

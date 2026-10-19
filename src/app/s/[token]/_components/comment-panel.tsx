@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 export type ReplyItem = {
   id: number;
@@ -28,8 +28,6 @@ export type HtmlPin = {
   relY: number;
 };
 export type PendingPin = ImagePin | HtmlPin;
-
-const NAME_KEY = "artipin:name";
 
 // 머리 줄: 핀 점, 작성자·시각, 오른쪽 끝에 삭제 아이콘. 핀 점은 장식이라 글로 따로 읽어 준다.
 function Head({
@@ -88,62 +86,18 @@ function DeleteButton({ c, onClick }: { c: ReplyItem; onClick: () => void }) {
   );
 }
 
-// 파일 종류와 무관한 댓글 목록·작성 UI. pending은 뷰어가 만든 임시 핀(없으면 일반 댓글).
+// 파일 종류와 무관한 댓글 목록. 작성은 뷰어가 핀 위치에 띄우는 NewCommentPopover가 맡는다.
 export function CommentPanel({
-  token,
   items,
   isOwner,
-  pending,
-  onSubmitted,
   onSelect,
 }: {
-  token: string;
   items: CommentItem[];
   isOwner: boolean;
-  pending?: PendingPin | null;
-  onSubmitted?: () => void;
   onSelect: (c: CommentItem) => void;
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [body, setBody] = useState("");
-  const [replyTo, setReplyTo] = useState<CommentItem | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    setName(localStorage.getItem(NAME_KEY) ?? "");
-  }, []);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    const res = await fetch(`/api/s/${token}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        author_name: name,
-        body,
-        parentId: replyTo?.id ?? null,
-        anchor: replyTo ? null : (pending ?? null),
-      }),
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setError(
-        ((await res.json().catch(() => null)) as { error?: string } | null)
-          ?.error ?? "댓글을 작성하지 못했습니다. 잠시 후 다시 시도하세요.",
-      );
-      return;
-    }
-    localStorage.setItem(NAME_KEY, name.trim());
-    setBody("");
-    setReplyTo(null);
-    onSubmitted?.();
-    router.refresh();
-  }
 
   async function toggleResolved(c: CommentItem) {
     const res = await fetch(`/api/comments/${c.id}/resolve`, {
@@ -185,16 +139,6 @@ export function CommentPanel({
               <p className="comment-body">{c.body}</p>
             )}
             <div className="comment-actions">
-              <button
-                type="button"
-                aria-label={`${c.authorName}님의 댓글에 답글`}
-                onClick={() => {
-                  setReplyTo(c);
-                  bodyRef.current?.focus();
-                }}
-              >
-                답글
-              </button>
               {isOwner ? (
                 <button
                   type="button"
@@ -220,52 +164,11 @@ export function CommentPanel({
         ))}
       </ul>
 
-      <form onSubmit={submit}>
-        {replyTo ? (
-          <div className="reply-note">
-            <p>{replyTo.authorName}님의 댓글에 답글</p>
-            <button type="button" onClick={() => setReplyTo(null)}>
-              취소
-            </button>
-            <p className="reply-quote">{replyTo.body}</p>
-          </div>
-        ) : pending ? (
-          <p className="reply-note" aria-live="polite">
-            핀 위치에 댓글을 남깁니다.
-          </p>
-        ) : null}
-        <label className="field">
-          <span>이름</span>
-          <input
-            name="author_name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="nickname"
-            spellCheck={false}
-            maxLength={50}
-            required
-          />
-        </label>
-        <label className="field">
-          <span>댓글</span>
-          <textarea
-            name="body"
-            ref={bodyRef}
-            autoComplete="off"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            maxLength={2000}
-            rows={2}
-            required
-          />
-        </label>
-        <div className="comment-foot">
-          {error ? <p role="alert">{error}</p> : null}
-          <button type="submit" disabled={busy}>
-            {busy ? "작성 중…" : replyTo ? "답글 작성" : "댓글 작성"}
-          </button>
-        </div>
-      </form>
+      {error ? (
+        <p className="comment-error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </aside>
   );
 }

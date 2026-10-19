@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { type CommentItem, CommentPanel, type ImagePin } from "./comment-panel";
 import { ModeToggle } from "./mode-toggle";
-import { PinPopover } from "./pin-popover";
+import { NewCommentPopover, PinPopover } from "./pin-popover";
 
 export function ImageViewer({
   src,
@@ -112,7 +112,10 @@ export function ImageViewer({
                 style={{ left: `${c.pin.x * 100}%`, top: `${c.pin.y * 100}%` }}
                 aria-label={`핀 ${c.pinNo} 댓글 보기`}
                 aria-expanded={openId === c.id}
-                onClick={() => setOpenId(openId === c.id ? null : c.id)}
+                onClick={() => {
+                  setPending(null);
+                  setOpenId(openId === c.id ? null : c.id);
+                }}
               >
                 {c.pinNo}
               </button>
@@ -130,27 +133,30 @@ export function ImageViewer({
             />
           ) : null}
           {pending ? (
-            <span
-              className="pin pending"
-              style={{
-                left: `${pending.x * 100}%`,
-                top: `${pending.y * 100}%`,
-              }}
-              aria-hidden="true"
-            >
-              +
-            </span>
+            <>
+              <span
+                className="pin pending"
+                style={{
+                  left: `${pending.x * 100}%`,
+                  top: `${pending.y * 100}%`,
+                }}
+                aria-hidden="true"
+              >
+                +
+              </span>
+              <NewCommentPopover
+                token={token}
+                anchor={pending}
+                left={`${pending.x * 100}%`}
+                top={`${pending.y * 100}%`}
+                flip={pending.x > 0.5}
+                onClose={() => setPending(null)}
+              />
+            </>
           ) : null}
         </div>
       </section>
-      <CommentPanel
-        token={token}
-        items={items}
-        isOwner={isOwner}
-        pending={pending}
-        onSubmitted={() => setPending(null)}
-        onSelect={scrollToPin}
-      />
+      <CommentPanel items={items} isOwner={isOwner} onSelect={scrollToPin} />
     </>
   );
 }

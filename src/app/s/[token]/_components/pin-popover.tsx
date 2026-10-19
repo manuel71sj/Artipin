@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { CommentItem, ReplyItem } from "./comment-panel";
+import type { CommentItem, PendingPin, ReplyItem } from "./comment-panel";
 
 const NAME_KEY = "artipin:name";
 
@@ -215,6 +215,113 @@ export function PinPopover({
           {error.message}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+// 댓글모드에서 핀·DOM을 고르면 그 자리에 새 댓글 입력 폼을 박스로 띄운다. 취소·Esc·작성 완료로 닫는다.
+// 핀을 다시 고르면 같은 박스가 새 위치로 옮겨 가므로 쓰던 내용은 유지된다.
+export function NewCommentPopover({
+  token,
+  anchor,
+  left,
+  top,
+  flip,
+  onClose,
+}: {
+  token: string;
+  anchor: PendingPin;
+  left: string;
+  top: string;
+  flip: boolean;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [body, setBody] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setName(localStorage.getItem(NAME_KEY) ?? "");
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/s/${token}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author_name: name, body, anchor }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError(
+        ((await res.json().catch(() => null)) as { error?: string } | null)
+          ?.error ?? "댓글을 작성하지 못했습니다. 잠시 후 다시 시도하세요.",
+      );
+      return;
+    }
+    localStorage.setItem(NAME_KEY, name.trim());
+    onClose();
+    router.refresh();
+  }
+
+  return (
+    <div
+      className={`pin-popover${flip ? " flip" : ""}`}
+      style={{ left, top }}
+      role="dialog"
+      aria-label="새 댓글"
+    >
+      <form className="pin-popover-form new" onSubmit={submit}>
+        <label className="field">
+          <span>이름</span>
+          <input
+            name="author_name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="nickname"
+            spellCheck={false}
+            maxLength={50}
+            required
+          />
+        </label>
+        <label className="field">
+          <span>댓글</span>
+          <textarea
+            name="body"
+            autoComplete="off"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={2000}
+            rows={2}
+            required
+          />
+        </label>
+        <div className="pin-popover-form-foot">
+          <button type="button" onClick={onClose}>
+            취소
+          </button>
+          <button type="submit" disabled={busy}>
+            {busy ? "작성 중…" : "댓글 작성"}
+          </button>
+        </div>
+        {error ? (
+          <p role="alert" className="pin-popover-error">
+            {error}
+          </p>
+        ) : null}
+      </form>
     </div>
   );
 }
