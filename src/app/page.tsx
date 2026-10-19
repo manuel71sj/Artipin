@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
-import { appOrigin } from "@/lib/hosts";
 import { FileActions } from "./_components/file-actions";
 import { UploadForm } from "./_components/upload-form";
 import styles from "./home.module.css";
@@ -31,7 +30,6 @@ export default async function Home() {
     )
     .groupBy(files.id)
     .orderBy(desc(files.createdAt), desc(files.id));
-  const origin = appOrigin();
 
   return (
     <div className={styles.page}>
@@ -94,7 +92,7 @@ export default async function Home() {
                     timeStyle: "short",
                   })}
                 </span>
-                <FileActions id={f.id} link={`${origin}/s/${f.shareToken}`} />
+                <FileActions id={f.id} path={`/s/${f.shareToken}`} />
               </li>
             ))}
           </ul>

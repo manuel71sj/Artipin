@@ -20,7 +20,7 @@ pnpm dev
 | `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Microsoft 앱 등록의 클라이언트 시크릿. `AUTH_MICROSOFT_ENTRA_ID_ISSUER`는 두지 않는다(기본 `common`이 개인·회사 계정을 모두 허용하고, `consumers`는 이 Auth.js 버전에서 issuer 검사에 실패한다) |
 | `AUTH_GITHUB_ID` | GitHub OAuth App 클라이언트 ID |
 | `AUTH_GITHUB_SECRET` | GitHub OAuth App 클라이언트 시크릿 |
-| `APP_HOST` | 소유자 화면 호스트(`host[:port]`, 예: `app.localhost:3000`). 공유 링크 origin에 쓰며 `localhost`가 포함되면 http, 아니면 https |
+| `APP_HOST` | 소유자 화면 호스트(`host[:port]`, 예: `app.localhost:3000`). `localhost`가 포함되면 http, 아니면 https. 복사하는 공유 링크는 이 값이 아니라 접속 중인 주소를 쓴다 |
 | `DATA_DIR` | SQLite(`app.db`)와 `uploads/`를 두는 디렉터리. 기본 `./data`, 컨테이너 이미지는 `/data` |
 | `CONTENT_HOST` | 업로드 본문 서빙 호스트(`host[:port]`, 예: `content.localhost:3000`). `APP_HOST`와 다른 값이어야 하며, 이 호스트는 `/c/*`만 응답한다 |
 

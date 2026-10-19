@@ -14,7 +14,7 @@ const COPY_LABEL: Record<CopyState, string> = {
   failed: "복사 실패",
 };
 
-export function FileActions({ id, link }: { id: number; link: string }) {
+export function FileActions({ id, path }: { id: number; path: string }) {
   const router = useRouter();
   const [copy, setCopy] = useState<CopyState>("idle");
   const [del, setDel] = useState<DeleteState>("idle");
@@ -30,7 +30,7 @@ export function FileActions({ id, link }: { id: number; link: string }) {
   async function copyLink() {
     let next: CopyState = "copied";
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
     } catch {
       next = "failed";
     }
