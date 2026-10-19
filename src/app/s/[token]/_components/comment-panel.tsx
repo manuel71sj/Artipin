@@ -40,6 +40,35 @@ function Author({ c }: { c: ReplyItem }) {
   );
 }
 
+// 텍스트 없이 휴지통 아이콘만 쓰는 삭제 버튼. 이름은 aria-label로 전한다.
+function DeleteButton({ c, onClick }: { c: ReplyItem; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="comment-delete"
+      aria-label={`${c.authorName}님의 댓글 삭제`}
+      onClick={onClick}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v6M14 11v6" />
+      </svg>
+    </button>
+  );
+}
+
 // 파일 종류와 무관한 댓글 목록·작성 UI. pending은 뷰어가 만든 임시 핀(없으면 일반 댓글).
 export function CommentPanel({
   token,
@@ -104,6 +133,12 @@ export function CommentPanel({
     else setError("처리하지 못했습니다. 잠시 후 다시 시도하세요.");
   }
 
+  async function remove(id: number) {
+    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+    if (res.ok) router.refresh();
+    else setError("삭제하지 못했습니다. 잠시 후 다시 시도하세요.");
+  }
+
   return (
     <aside className="comments">
       {items.length === 0 ? (
@@ -137,6 +172,9 @@ export function CommentPanel({
                 </button>
               ) : null}
               {c.resolved ? <span>해결됨</span> : null}
+              {c.canDelete ? (
+                <DeleteButton c={c} onClick={() => remove(c.id)} />
+              ) : null}
             </div>
             {c.replies.length > 0 ? (
               <ul className="replies">
@@ -144,6 +182,11 @@ export function CommentPanel({
                   <li key={r.id}>
                     <Author c={r} />
                     <p className="comment-body">{r.body}</p>
+                    {r.canDelete ? (
+                      <div className="comment-actions">
+                        <DeleteButton c={r} onClick={() => remove(r.id)} />
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
