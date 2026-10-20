@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artipin 경쟁 서비스 벤치마킹</title>
+<meta name="description" content="유사 서비스 6곳의 기능을 비교하고 Artipin에 추가할 기능을 추천·적용 보류로 판단한 보고서">
+<style>
+:root{--bg:#fafaf8;--fg:#1d1d1b;--mut:#62625c;--line:#dcdcd4;--card:#fff;--acc:#2447c8;
+--rec:#0b7a4b;--recbg:#e4f5ec;--wait:#8a5a00;--waitbg:#fff1d6;--skip:#6b6b64;--skipbg:#ececE6;--me:#eef2ff;--code:#f0f0ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#151513;--fg:#ececE6;--mut:#a3a39a;--line:#34342f;--card:#1e1e1b;--acc:#8fa8ff;
+--rec:#5fd3a0;--recbg:#12301f;--wait:#f0c060;--waitbg:#352a10;--skip:#a9a9a0;--skipbg:#2a2a26;--me:#1c2340;--code:#2a2a26}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:40px 16px 96px}
+h1{font-size:clamp(26px,5vw,38px);line-height:1.25;margin:0 0 8px;letter-spacing:-.02em}
+h2{font-size:24px;margin:56px 0 8px;letter-spacing:-.01em}
+h2 .n{color:var(--mut);font-weight:500;margin-right:8px}
+h3{font-size:18px;margin:0;line-height:1.4}
+p{margin:8px 0} a{color:var(--acc)}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font:.88em ui-monospace,SFMono-Regular,Menlo,monospace}
+.meta{color:var(--mut);font-size:14px}
+.lead{font-size:18px;margin-top:20px}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}
+.sum div{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px}
+.sum b{display:block;font-size:34px;line-height:1.1}
+.sum .r b{color:var(--rec)} .sum .w b{color:var(--wait)} .sum .s b{color:var(--skip)}
+.sum span{color:var(--mut);font-size:14px}
+.box{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 20px;margin:16px 0}
+.box ul,.box ol{margin:6px 0;padding-left:22px}
+.box li{margin:4px 0}
+.warn{border-left:4px solid var(--wait)}
+.sites{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px}
+.site{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:18px 20px}
+.site .url{font-size:13px;margin:2px 0 8px;word-break:break-all}
+.site .tag{font-weight:600}
+.site ul{margin:8px 0;padding-left:20px;font-size:15px} .site li{margin:3px 0}
+.site .take{background:var(--me);border-radius:8px;padding:8px 12px;font-size:15px}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:820px;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+thead th{position:sticky;top:0;background:var(--card);font-size:13px;text-align:center}
+thead th:first-child{text-align:left}
+tbody th[scope=row]{font-weight:500;min-width:200px}
+tr.grp th{background:var(--code);font-size:13px;color:var(--mut)}
+td.c{text-align:center;font-size:17px;width:84px}
+td.y{color:var(--rec);font-weight:700} td.p{color:var(--wait)} td.n{color:#b3261e} td.o{color:var(--mut)}
+th.me,td.me{background:var(--me)}
+.note{display:block;font-weight:400;color:var(--mut);font-size:12px;line-height:1.45;margin-top:2px}
+.legend{font-size:14px;color:var(--mut);margin:8px 0}
+.legend span{margin-right:14px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.filters button{font:inherit;font-size:14px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+.filters button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.item{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 20px;margin:12px 0;border-left-width:5px}
+.item.rec{border-left-color:var(--rec)} .item.wait{border-left-color:var(--wait)} .item.skip{border-left-color:var(--skip)}
+.item header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:4px}
+.item .id{font:600 13px ui-monospace,Menlo,monospace;color:var(--mut)}
+.badge{margin-left:auto;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px}
+.badge.rec{background:var(--recbg);color:var(--rec)} .badge.wait{background:var(--waitbg);color:var(--wait)} .badge.skip{background:var(--skipbg);color:var(--skip)}
+.item p b{display:inline-block;min-width:104px;color:var(--mut);font-weight:600;font-size:14px;margin-right:6px;vertical-align:top}
+.item p{padding-left:0}
+.item .src{font-size:14px}
+.item .trig{background:var(--waitbg);border-radius:8px;padding:8px 12px}
+.hidden{display:none}
+.step{counter-increment:s;position:relative;padding-left:44px;margin:14px 0}
+.step::before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.steps{counter-reset:s}
+.tt{width:100%;min-width:0;font-size:14.5px} .tt th,.tt td{text-align:left}
+@media (max-width:640px){.sum{grid-template-columns:1fr} .item p b{display:block} .badge{margin-left:0}}
+@media print{.filters{display:none} .item.hidden{display:block} body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="meta">Artipin · 벤치마킹 보고서 · 2026-10-19 · 조사 대상 6곳</p>
+<h1>유사 서비스 6곳은 무엇을 제공하고, Artipin은 무엇을 가져와야 하는가</h1>
+<p class="lead">결론: <b>지금 추가할 만한 것은 2가지</b>(피드백 마크다운 내보내기, 같은 링크로 새 버전 교체)다. 나머지 17가지는 근거를 적고 <b>적용을 보류</b>한다. 보류 중 11가지는 구체적인 착수 조건을 달았다.</p>
+
+<div class="sum" role="group" aria-label="판정 요약">
+<div class="r"><b>2</b><span>추천 — 다음에 만든다면 이것부터</span></div>
+<div class="w"><b>11</b><span>적용 보류 · 트리거 대기 — 조건이 생기면 착수</span></div>
+<div class="s"><b>6</b><span>적용 보류 · 방향 불일치 — 구조·정체성과 충돌</span></div>
+</div>
+
+<div class="box">
+<b>한눈에 보는 발견</b>
+<ul>
+<li><b>핵심 웨지는 이미 시장의 최소선이다.</b> '링크 + 로그인 없는 핀 댓글 + 격리 샌드박스'는 coeditHTML·commentable·Tiiny 모두 갖고 있다. 이것만으로는 차별이 되지 않는다(설계서가 인용한 사업성 평가 '차별성 3/10'과 같은 결론).</li>
+<li><b>시장은 '댓글 → AI 수정 → 같은 링크 갱신' 루프로 수렴 중이다.</b> 6곳 중 5곳이 AI 연동(MCP·CLI)이나 내보내기를 갖고 있고, 4곳이 같은 링크로 새 버전을 올린다. Artipin은 이 루프의 앞단(댓글 수집)만 갖고 있다.</li>
+<li><b>Artipin에게 남는 차이는 두 가지다.</b> ① 댓글에 로그인이 필요한 곳(HaveTML)이 있는 반면 Artipin은 없다. ② 6곳은 모두 외부 호스팅형이다. 사내 서버에 설치해 데이터를 밖으로 내보내지 않는 점은 이 조사에서 직접 대응하는 제품을 찾지 못했다(coeditHTML이 소스를 공개했다고 하나 자체 호스팅 가능 여부는 확인하지 못함). 이 둘째 항목은 조사 결과에서 끌어낸 추론이고 수요 검증은 아직 없다.</li>
+<li><b>기능이 많은 곳(BugSmash·HaveTML)은 그대로 따라가면 범위가 폭주한다.</b> 그래서 이 문서는 '많이 가진 곳이 있는가'가 아니라 '웨지를 끝까지 닫는 데 필요한가'로 판정한다.</li>
+</ul>
+</div>
+
+<div class="box warn">
+<b>읽기 전에 — 이 조사의 한계</b>
+<ul>
+<li>정보는 2026-10-19에 각 페이지 본문을 가져와 요약한 것이다. 페이지에 적힌 문구만 근거로 삼았고, 실제로 가입·사용해 보지는 않았다.</li>
+<li>매트릭스의 <b>–</b>는 '페이지에 언급 없음'이지 '없다'는 뜻이 아니다. 가격표는 대부분 확인하지 못했고(HaveTML은 /pricing 미열람), BugSmash 가격은 구조화 데이터 기준이다.</li>
+<li><b>확인된 사용자 수요는 아직 없다.</b> 설계서의 수요 근거는 '가설 단계'다. 그래서 '추천'도 '사용자가 요구했다'가 아니라 '다음에 만든다면 비용 대비 근거가 가장 크다'는 뜻이고, 나머지는 모두 착수 조건을 두었다(불필요한 선제 구현을 피하는 프로젝트 원칙에 따른다).</li>
+</ul>
+</div>
+
+<h2><span class="n">1</span>판정 기준</h2>
+<div class="box">
+<ul>
+<li><b>웨지 적합성</b> — '업로드 → 링크 → 로그인 없는 핀 댓글 → 확인·해결' 흐름을 끝까지 닫는 데 필요한가.</li>
+<li><b>비용과 영향</b> — 스키마·보안 모델(두 호스트 분리, CSP sandbox, 브리지 검증)·외부 의존성을 얼마나 건드리는가.</li>
+<li><b>벤치마크 빈도</b> — 6곳 중 몇 곳이 제공하는가. 한 곳뿐인 기능은 유행이 아니라 그 제품의 취향일 수 있다.</li>
+<li><b>검증 가능성</b> — 설계서의 지표(전달·댓글·재업로드)와 2주 관찰로 필요성을 확인할 수 있는가.</li>
+</ul>
+<p><span class="badge rec">추천</span> 세 기준을 모두 통과 · <span class="badge wait">적용 보류 · 트리거 대기</span> 좋은 기능이지만 아직 필요 증거가 없음, 조건이 충족되면 착수 · <span class="badge skip">적용 보류 · 방향 불일치</span> 구조나 제품 방향과 충돌해 조건이 생겨도 재검토 우선순위가 낮음</p>
+</div>
+
+<h2><span class="n">2</span>Artipin 현재 기능 (기준선)</h2>
+<div class="box">
+<p>설계 문서와 코드(커밋 이력, API 라우트, 스키마)를 함께 확인한 현재 상태다.</p>
+<ul>
+<li><b>업로드</b>: 이미지(PNG·JPEG·WebP ≤10MB, 매직 바이트 판정), 독립형 HTML(≤5MB, UTF-8만). 파일 선택 또는 HTML 코드 붙여넣기.</li>
+<li><b>공유</b>: 128비트 토큰 링크 <code>/s/{token}</code>, 복사 시 접속 중인 주소 사용. 파일 삭제 시 두 URL 모두 404.</li>
+<li><b>핀 댓글</b>: HTML은 CSS 선택자 + 요소 내 상대좌표, 이미지는 0~1 상대좌표. 핀 클릭 시 popover, 댓글 클릭 시 핀 위치로 스크롤, 댓글 모드에서 DOM outline 표시. 브리지 미준비 시 핀 미지원 표시.</li>
+<li><b>댓글 운영</b>: 1단계 답글, 소유자만 최상위 댓글 해결·재개, 삭제(소유자는 전체, 방문자는 본인 댓글). 방문자는 로그인 없이 이름만 입력(브라우저에 저장).</li>
+<li><b>소유자</b>: Google·GitHub 로그인, 내 파일 목록·삭제. 열람 기록(<code>views</code>)과 지표 SQL(<code>pnpm metrics</code>).</li>
+<li><b>보안·운영</b>: APP_HOST/CONTENT_HOST 분리, CSP <code>sandbox allow-scripts; connect-src 'none'</code>, 컨테이너 배포, SQLite 일관 백업 스크립트.</li>
+<li><b>없는 것(설계상 제외)</b>: 버전·교체, 비밀번호·만료, 실시간 갱신, 내보내기, CLI·MCP, 팀 관리, 댓글 잠금.</li>
+</ul>
+</div>
+
+<h2><span class="n">3</span>벤치마킹 대상 6곳</h2>
+<div class="sites">
+<article class="site"><h3>coeditHTML</h3><p class="url"><a href="https://coedithtml.com" rel="noopener noreferrer">https://coedithtml.com</a></p><p class="tag">독립형 HTML을 링크로 공유하고, 실행된 상태 그대로 검토·편집한다.</p><ul><li>보기·댓글·편집 3단계 권한을 링크별로 발급하고 개별 취소</li><li>텍스트 드래그 댓글 + 차트·이미지 위 스티커 메모, 사이드바에 피드백 모아보기</li><li>본문 텍스트 직접 수정(되돌리기 가능), 원본 파일은 불변 보관</li><li>피드백을 마크다운으로 복사, 변경 반영된 HTML 다운로드</li><li>격리 도메인 샌드박스, 선택적 비밀번호, 계정 불필요(이름만 입력)</li><li>HTML 5MB, 다중 파일·빌드 필요 프로젝트 미지원, 소스 GitHub 공개</li></ul><p><b>가격·한도</b> 개인 무료(카드·계정 불필요). 기업 도입은 별도 문의. 5MB 외 한도는 페이지에 없음.</p><p class="take"><b>Artipin에 주는 시사점</b> 구조·한도·보안 모델이 Artipin과 가장 닮았다. 차이는 '편집 권한'과 '마크다운 내보내기'. 따라 할 가치가 있는 것은 후자다.</p></article>
+<article class="site"><h3>HaveTML</h3><p class="url"><a href="https://havetml.com" rel="noopener noreferrer">https://havetml.com</a></p><p class="tag">AI 도구에서 바로 게시하는 아티팩트 호스팅 + 캔버스·실시간 협업·E2EE까지 가진 가장 넓은 제품.</p><ul><li>HTML·Markdown·YAML·JSON 지원, 영구 링크, 비공개 → 링크 공유 → 공개 3단계</li><li>같은 링크 뒤에서 새 버전 업로드</li><li>실시간 접속자·커서·즉시 갱신 댓글(협업자 초대는 Pro)</li><li>공유 JSON 상태 + 서명된 웹훅으로 에이전트가 페이지 변화를 감시</li><li>브라우저 AES-256 암호화(키는 URL # 뒤라 서버로 안 감)</li><li>Claude 원클릭 OAuth, Claude Code·Cursor·Codex는 설정 붙여넣기(MCP, 전 플랜 무료)</li><li>캔버스 보드, Explore, Circles(그룹 공유), 하위 폴더, Chrome 확장</li></ul><p><b>가격·한도</b> 무료로 시작(카드 불필요). Pro: 협업자 초대·비밀번호·만료. 가격표(/pricing)는 열람하지 못함.</p><p class="take"><b>Artipin에 주는 시사점</b> 댓글을 달려면 가입해야 한다. Artipin의 '로그인 없는 댓글'이 분명한 차이다. 범위가 넓어 그대로 따라가면 안 되는 대표 사례.</p></article>
+<article class="site"><h3>Artifact Share</h3><p class="url"><a href="https://artifactshare.com" rel="noopener noreferrer">https://artifactshare.com</a></p><p class="tag">AI가 올리고, 사람이 댓글을 달면 AI가 읽고 고쳐 같은 URL로 갱신하는 루프.</p><ul><li>Claude Code·Codex·Cursor용 CLI, 채팅 AI용 MCP 서버(artifactshare.com/mcp)</li><li>같은 URL로 업데이트, 전체 버전 기록</li><li>위치 지정 댓글 → AI가 댓글을 읽고 수정한 뒤 답글</li><li>기본은 워크스페이스 내부 공개, 외부는 만료 링크·일회용 이메일 코드</li><li>회의록 정리, 인터랙티브 UI 목업 검토 등 사용 사례 제시</li></ul><p><b>가격·한도</b> 무료 100MB, 사용자 수 무제한, 인원과 무관한 정액제. 유료 플랜 가격은 페이지에 없음.</p><p class="take"><b>Artipin에 주는 시사점</b> 시장이 '댓글 → AI 수정 → 같은 링크 갱신'으로 수렴하고 있음을 보여주는 가장 명확한 증거. Artipin이 이 루프의 앞단(댓글 수집)을 이미 갖고 있다.</p></article>
+<article class="site"><h3>commentable.link</h3><p class="url"><a href="https://www.commentable.link" rel="noopener noreferrer">https://www.commentable.link</a></p><p class="tag">HTML·PDF 위에 핀 댓글만 남기는 최소 기능 제품. E2EE가 중심 메시지.</p><ul><li>HTML 붙여넣기 → 렌더링 → 요소 클릭 핀 댓글, 공유 전 라이브 미리보기</li><li>PDF는 페이지별 위치 고정 댓글, 리더 불필요</li><li>댓글 해결·재개 버튼, 피드백을 AI용으로 내보내기</li><li>AES-256-GCM 브라우저 암호화, 키는 링크에만, null-origin 샌드박스, noindex·robots 차단</li><li>계정 없이 댓글, 역할별 권한은 없음</li></ul><p><b>가격·한도</b> 두 도구 모두 무료(카드 불필요). 유료·한도 정보 없음.</p><p class="take"><b>Artipin에 주는 시사점</b> 웨지가 Artipin과 거의 같다(링크 + 핀 + 해결). 새로 배울 것은 '내보내기'와 noindex 정도로, 이 사이트가 최소 제품의 상한선에 가깝다.</p></article>
+<article class="site"><h3>Tiiny Host · Feedback Mode</h3><p class="url"><a href="https://tiiny.host/feature/feedback-mode/" rel="noopener noreferrer">https://tiiny.host/feature/feedback-mode/</a></p><p class="tag">정적 호스팅 서비스에 붙은 부가 기능. 100종 이상 파일에 핀 주석을 단다.</p><ul><li>프레젠테이션·PDF·HTML 등 100종 이상, 계정 없이 핀 주석</li><li>원클릭 비밀번호(링크와 별도 공유)</li><li>검토 중에도 파일 교체·브라우저 편집, 링크 유지, 이전 버전 보관과 롤백</li><li>팀 협업은 Pro</li><li>TLS 암호화 전송</li></ul><p><b>가격·한도</b> 무료로 시작, Pro에서 팀 협업. 세부 한도는 페이지에 없음. 알림·해결 처리·답글은 페이지에 언급 없음.</p><p class="take"><b>Artipin에 주는 시사점</b> '검토 중에 파일을 바꿔도 링크가 안 바뀐다'가 기본 전제다. 비동기 검토(리뷰어가 동시에 접속하지 않음)를 명시한 점도 Artipin의 사용 방식과 맞다.</p></article>
+<article class="site"><h3>BugSmash</h3><p class="url"><a href="https://bugsmash.io/html-feedback/" rel="noopener noreferrer">https://bugsmash.io/html-feedback/</a></p><p class="tag">에이전시·QA 지향의 무거운 제품. 피드백을 작업(task)으로 바꾸는 데까지 간다.</p><ul><li>핀 댓글, 스레드·답글, 해결, 작업 전환(지정·우선순위)</li><li>데스크톱·태블릿·모바일 뷰포트 전환, 댓글에 브라우저·기기 정보 첨부</li><li>새 빌드 업로드 시 버전 비교, 피드백은 새 버전에도 유지</li><li>.html 또는 CSS·JS·이미지·폰트를 담은 .zip(페이지 50MB, 로그인 시 100MB)</li><li>AI 리뷰어(접근성·UI/UX·맞춤법·깨진 링크)와 고객별 커스텀 리뷰어, MCP로 에이전트가 댓글 읽고 수정본 업로드</li><li>Jira·Linear·Trello 내보내기, Public·Private·Password 프로젝트, 워크스페이스 기본값, Agency 화이트라벨·자체 도메인</li></ul><p><b>가격·한도</b> Free(첫 프로젝트 체험용으로 보임 — 표기가 'Free forever'와 엇갈림), Starter $19, Team $49, Agency $99. 플랜별 한도는 페이지에 없음.</p><p class="take"><b>Artipin에 주는 시사점</b> 기능은 가장 많지만 사내 MVP에는 대부분 과하다. 가져올 것은 뷰포트 전환 같은 '작은 것'뿐이고, 나머지는 범위 폭주의 경고로 읽는다.</p></article>
+</div>
+
+<h2><span class="n">4</span>기능 비교 매트릭스</h2>
+<p class="legend"><span><b style="color:var(--rec)">●</b> 지원(페이지 명시)</span><span><b style="color:var(--wait)">◐</b> 일부·유료·조건부</span><span><b style="color:#b3261e">×</b> 명시적 미지원</span><span><b style="color:var(--mut)">–</b> 페이지에 언급 없음</span></p>
+<div class="tw" tabindex="0" role="region" aria-label="기능 비교 표(가로 스크롤)">
+<table>
+<thead><tr><th scope="col">기능</th><th scope="col">coeditHTML</th><th scope="col">HaveTML</th><th scope="col">Artifact Share</th><th scope="col">commentable</th><th scope="col">Tiiny Feedback</th><th scope="col">BugSmash</th><th scope="col" class=me>Artipin(현재)</th></tr></thead>
+<tbody>
+<tr class="grp"><th colspan="8" scope="colgroup">댓글 작성</th></tr>
+<tr><th scope="row">로그인 없이 댓글<span class="note">HaveTML은 댓글에 무료 가입이 필요. Artifact Share는 기본이 워크스페이스 비공개이고 외부는 만료 링크·이메일 코드. BugSmash 공개 프로젝트의 게스트 댓글은 기능을 켰을 때만.</span></th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr><th scope="row">화면 위치 핀 댓글<span class="note">coeditHTML은 텍스트 드래그 + 스티커 메모 방식.</span></th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr><th scope="row">텍스트 드래그 선택 댓글</th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">답글·스레드<span class="note">commentable은 스레드 아래가 아니라 위치에 고정. Tiiny는 페이지에 언급 없음.</span></th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr><th scope="row">해결·재개 처리</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr><th scope="row">이미지 파일 위 핀 댓글</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr class="grp"><th colspan="8" scope="colgroup">검토 루프·AI</th></tr>
+<tr><th scope="row">피드백 내보내기(마크다운 등)<span class="note">coeditHTML은 마크다운 복사, commentable은 AI용 내보내기. BugSmash는 Jira·Linear·Trello 내보내기.</span></th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">AI 에이전트 연동(MCP·CLI)<span class="note">coeditHTML은 'Connect your AI/MCP Setup' 메뉴만 있고 세부 내용은 페이지에 없음.</span></th><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">AI가 댓글을 읽고 수정·답글<span class="note">Artifact Share의 핵심 루프. BugSmash는 MCP로 열린 댓글을 읽고 수정본 재업로드.</span></th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">AI 자동 리뷰어(접근성·맞춤법 등)</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">이슈 트래커 연동</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr class="grp"><th colspan="8" scope="colgroup">버전·파일 형식</th></tr>
+<tr><th scope="row">같은 링크로 새 버전 교체<span class="note">coeditHTML은 원본 불변 + 편집 변경분만 적용하는 구조.</span></th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">버전 히스토리·비교·롤백<span class="note">Tiiny는 롤백, BugSmash는 비교, Artifact Share는 전체 기록.</span></th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">다중 파일(zip) 업로드</th><td class="c n" title="불가"><span aria-label="불가">×</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">PDF</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">Markdown·JSON 등 비HTML</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">뷰포트 전환(데스크톱·태블릿·모바일)</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">댓글에 브라우저·기기 정보 첨부</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr class="grp"><th colspan="8" scope="colgroup">접근 제어·보안</th></tr>
+<tr><th scope="row">비밀번호 보호<span class="note">HaveTML은 Pro 전용.</span></th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">만료·링크 취소</th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td></tr>
+<tr><th scope="row">권한 분리(보기·댓글·편집)</th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">격리 origin 샌드박스 명시</th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr><th scope="row">종단간 암호화(E2EE)</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">검색엔진 noindex</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr class="grp"><th colspan="8" scope="colgroup">협업·확장</th></tr>
+<tr><th scope="row">팀·워크스페이스<span class="note">HaveTML Circles·Pro 초대, Tiiny Pro 팀, BugSmash 워크스페이스.</span></th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">실시간 커서·접속자 표시</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">직접 편집</th><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+<tr><th scope="row">열람 기록·지표</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c p" title="일부·조건부"><span aria-label="일부·조건부">◐</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c me y" title="지원"><span aria-label="지원">●</span></td></tr>
+<tr><th scope="row">화이트라벨·커스텀 도메인</th><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c o" title="언급 없음"><span aria-label="언급 없음">–</span></td><td class="c y" title="지원"><span aria-label="지원">●</span></td><td class="c me o" title="언급 없음"><span aria-label="언급 없음">–</span></td></tr>
+</tbody>
+</table>
+</div>
+<p class="meta">표에서 Artipin 열은 현재 코드 기준이다. 6곳 중 4곳 이상이 제공하는 기능: 로그인 없는 댓글, 핀 댓글, 새 버전 교체, 버전 기록, 비밀번호(HaveTML은 Pro 전용). 그중 Artipin에 없고 웨지와 직결되는 것은 새 버전 교체뿐이고, 비밀번호는 접근 제어라 사외 공유 전까지 보류로 판단했다.</p>
+
+<h2><span class="n">5</span>기능별 판단: 추천 / 적용 보류</h2>
+<div class="filters" role="group" aria-label="판정 필터">
+<button type="button" data-f="all" aria-pressed="true">전체 19</button>
+<button type="button" data-f="rec" aria-pressed="false">추천 2</button>
+<button type="button" data-f="wait" aria-pressed="false">트리거 대기 11</button>
+<button type="button" data-f="skip" aria-pressed="false">방향 불일치 6</button>
+</div>
+<div id="items">
+<article class="item rec" data-v="rec" id="P1">
+<header><span class="id">P1</span><h3>피드백 마크다운 내보내기</h3><span class="badge rec">추천</span></header>
+<p class="src"><b>벤치마크 근거</b> coeditHTML · commentable (AI 루프 계열: Artifact Share · BugSmash · HaveTML)</p>
+<p><b>무엇</b> 소유자가 한 번의 클릭으로 파일의 댓글을 마크다운으로 복사한다. 항목마다 작성자, 본문, 해결 여부, 앵커(CSS 선택자 또는 이미지 좌표), 답글을 담는다. 미해결만 복사하는 선택지를 둔다.</p>
+<p><b>추천 이유</b> Artipin의 사용자는 AI 산출물을 만든 사람이고, 피드백의 다음 행선지는 거의 확실히 '그 AI에게 다시 붙여넣기'다. 지금은 패널을 눈으로 읽고 손으로 옮겨 적어야 하고, 이 구간이 '링크 + 핀 댓글' 웨지의 마지막 한 칸이다. 6개 사이트 중 5곳이 이 루프(내보내기 또는 에이전트 연동)를 제공해 벤치마크 신호가 가장 강하다. 반면 구현은 가장 작다. 외부 서비스·토큰·스키마 변경이 필요 없다.</p>
+<p><b>Artipin 적용 범위</b> 뷰어의 댓글 패널이 이미 댓글 목록과 앵커를 받아 쓰므로, 새 API 없이 클라이언트에서 문자열을 조립해 클립보드에 복사하는 방식이 가능해 보인다(착수 시 CommentItem에 앵커가 들어 있는지 확인). 소유자 세션에서만 버튼을 노출한다.</p>
+<p><b>주의</b> 선택자만으로는 AI가 요소를 못 찾을 수 있다. 첫 사용 후 '요소 텍스트 앞 40자' 같은 문맥이 필요하다고 확인되면 그때 앵커에 추가한다(미리 넣지 않는다). 방문자 이름이 그대로 복사되므로 외부 채널에 붙여넣을 때 유의.</p>
+</article>
+<article class="item rec" data-v="rec" id="P2">
+<header><span class="id">P2</span><h3>같은 링크로 새 버전 교체(덮어쓰기)</h3><span class="badge rec">추천</span></header>
+<p class="src"><b>벤치마크 근거</b> Tiiny · HaveTML · Artifact Share · BugSmash</p>
+<p><b>무엇</b> 소유자가 기존 파일을 새 파일로 교체한다. 공유 토큰·댓글·조회 기록은 유지하고 본문만 바뀐다. 버전 목록·비교·롤백은 만들지 않는다.</p>
+<p><b>추천 이유</b> AI 산출물은 '댓글 → 재생성 → 다시 공유'가 기본 동작이다. 지금은 새로 올리면 새 링크가 되어 받는 사람이 링크를 다시 받고, 이전 댓글 맥락이 끊긴다. 6개 중 4곳이 '링크 유지'를 기본으로 제공한다는 건 이 불편이 일반적이라는 뜻이다. 설계 문서의 지표 (c) '같은 사람이 다시 올렸는가'도 사실상 이 행동을 측정한다. 교체 기능이 있으면 재업로드가 신규 파일이 아니라 같은 파일의 갱신이 되어 지표 정의를 함께 손봐야 한다는 점은 알아 둘 것.</p>
+<p><b>Artipin 적용 범위</b> 파일 교체 Route Handler 1개(소유자 세션 + 형식·한도 검사는 기존 <code>upload.ts</code> 재사용), 저장 파일 덮어쓰기, <code>/api/files</code> 목록의 교체 버튼. 콘텐츠 응답의 캐시 헤더가 교체 직후에도 새 본문을 내보내는지 확인 필요.</p>
+<p><b>주의</b> 교체 후 선택자가 맞지 않는 핀은 설계상 '핀 없이 목록에만' 표시되므로 최악의 경우에도 댓글은 남는다. 다만 '이미 반영된 지적'과 '새 콘텐츠에 대한 지적'이 섞여 헷갈릴 수 있으니, 필요해지면 그때 소유자가 해결 처리로 정리하게 한다(별도 버전 표시는 만들지 않음). 이전 본문은 복구할 수 없다는 점을 확인 문구로 알린다.</p>
+</article>
+<article class="item wait" data-v="wait" id="W1">
+<header><span class="id">W1</span><h3>AI 에이전트 연동(개인 API 토큰 → MCP/CLI)</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> HaveTML · Artifact Share · BugSmash (coeditHTML은 메뉴만 확인)</p>
+<p><b>무엇</b> AI 도구가 직접 파일을 올리고 댓글을 읽게 한다. 단계는 ① 소유자별 API 토큰으로 업로드·댓글 조회 API 호출 ② 그 위에 MCP 서버.</p>
+<p><b>보류 이유</b> 시장 방향은 분명하지만 지금 만들 이유가 없다. 설계 문서가 CLI/MCP를 MVP에서 제외했고, 사용 사례가 불명확하다. 인증 모델(세션 쿠키 → 토큰), 토큰 폐기, 에이전트가 만드는 대량 업로드 처리까지 한 번에 따라온다. 또한 P1(내보내기)을 먼저 쓰면 '복사·붙여넣기가 병목인가'가 데이터로 드러나, 이 항목의 필요성을 싸게 검증할 수 있다.</p>
+<p class="trig"><b>착수 트리거</b> P1 내보내기를 쓰는 소유자가 매번 같은 파일을 AI에 되먹이는데 복사가 번거롭다는 관찰, 또는 업로드를 사람 손이 아니라 AI 세션에서 직접 하고 싶다는 요청.</p>
+</article>
+<article class="item wait" data-v="wait" id="W2">
+<header><span class="id">W2</span><h3>뷰포트 전환 + 댓글에 뷰포트·브라우저 정보 첨부</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> BugSmash</p>
+<p><b>무엇</b> 뷰어에서 iframe 폭을 데스크톱·태블릿·모바일로 전환하고, 댓글 저장 시 당시 뷰포트와 UA를 같이 남긴다.</p>
+<p><b>보류 이유</b> 구현은 작지만(iframe 폭 토글) 수요 증거가 BugSmash 한 곳뿐이다. '모바일에서는 깨져요' 같은 지적이 댓글로 반복돼야 가치가 확인된다. 핀 앵커는 요소 선택자 + 요소 내 상대좌표라 폭이 달라도 대체로 유지되지만, 폭에 따라 레이아웃이 달라지면 같은 핀이 다른 곳에 보일 수 있다.</p>
+<p class="trig"><b>착수 트리거</b> 반응형·모바일 관련 댓글이 2주 관찰 중 반복되거나, 소유자가 모바일 확인용으로 별도 캡처를 보내는 사례.</p>
+</article>
+<article class="item wait" data-v="wait" id="W3">
+<header><span class="id">W3</span><h3>Markdown(.md) 업로드</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> HaveTML · Artifact Share</p>
+<p><b>무엇</b> 마크다운 파일을 올리면 서버가 HTML로 변환해 기존 HTML 흐름으로 서빙한다.</p>
+<p><b>보류 이유</b> AI 도구의 기본 산출물이 마크다운이라 자연스러운 요구처럼 보이지만, 현재 사용자가 HTML을 만들어 달라고 요청하면 해결되는 문제일 수 있다. 변환기 의존성과 변환 결과의 스타일 품질(기본 CSS)을 책임져야 한다는 점이 숨은 비용이다. 변환된 HTML도 기존 샌드박스·브리지 경로를 그대로 타므로 보안 모델 변경은 없다.</p>
+<p class="trig"><b>착수 트리거</b> '.md를 HTML로 바꿔서 다시 올렸다'는 사례, 또는 업로드 거절(확장자 오류) 기록이 반복될 때.</p>
+</article>
+<article class="item wait" data-v="wait" id="W4">
+<header><span class="id">W4</span><h3>비밀번호 보호 · 링크 만료</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> coeditHTML · Tiiny · BugSmash · HaveTML(Pro) · Artifact Share(만료 링크)</p>
+<p><b>무엇</b> 링크를 열 때 비밀번호를 요구하거나, 지정한 날짜 이후 링크를 닫는다.</p>
+<p><b>보류 이유</b> 비밀번호 또는 만료 링크를 6개 중 5곳이 제공해 가장 흔한 접근 제어이지만, Artipin의 현재 위협 모델은 '128비트 토큰을 아는 사내 사람'이다. 설계 문서는 사외 공유 시작을 업그레이드 트리거로 정해 두었다. 구현도 가볍지 않다. 콘텐츠가 다른 origin(CONTENT_HOST)에서 서빙되므로 비밀번호 검증 결과를 그 호스트의 <code>/c/*</code>까지 전달하는 서명 토큰·쿠키 설계가 필요하다. 만료는 단순하지만(날짜 컬럼 + 조회 시 검사) 만료 후 안내 화면도 필요하다.</p>
+<p class="trig"><b>착수 트리거</b> 사외 사용자와 공유 시작(설계서의 업그레이드 트리거), 또는 민감 산출물을 링크로 공유하고 싶다는 구체 요청.</p>
+</article>
+<article class="item wait" data-v="wait" id="W5">
+<header><span class="id">W5</span><h3>보기 전용 링크(댓글 잠금) · 권한 분리 링크</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> coeditHTML(보기·댓글·편집 별도 링크) · BugSmash(공개 범위 3종)</p>
+<p><b>무엇</b> 같은 파일에 '보기만 가능한 링크'와 '댓글 가능한 링크'를 따로 발급한다.</p>
+<p><b>보류 이유</b> 설계서가 '댓글 잠금'을 제외 항목으로 명시한 이유(확인된 요구 없음)가 그대로 유효하다. 경영진·고객에게 보여주기만 하는 경우가 실제로 있어야 필요해진다. 구현은 토큰 컬럼 추가 정도라 작지만, 링크 두 개의 관리 화면과 '어느 링크로 열었는지'를 뷰어가 알아야 하는 분기가 따라온다.</p>
+<p class="trig"><b>착수 트리거</b> '댓글 달릴까 봐 공유를 망설였다'는 소유자 발언, 또는 읽기 전용 열람자에게 댓글 UI가 혼란을 줬다는 관찰.</p>
+</article>
+<article class="item wait" data-v="wait" id="W6">
+<header><span class="id">W6</span><h3>검색엔진 noindex 헤더</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> commentable.link</p>
+<p><b>무엇</b> <code>X-Robots-Tag: noindex, nofollow</code>를 <code>/s/*</code>·<code>/c/*</code> 응답에 붙인다.</p>
+<p><b>보류 이유</b> 현재 코드에는 robots/noindex 처리가 없다. 사내망 전용 배포라면 필요 없고, 외부에서 도달 가능한 호스트에 올리는 순간 토큰 URL이 메신저 미리보기·크롤러를 통해 색인될 위험이 생긴다. 구현은 <code>proxy.ts</code> 헤더 한 줄이라 비용이 거의 없어서, '조건이 바뀌는 날 같이 넣는다'는 체크리스트 항목으로 둔다.</p>
+<p class="trig"><b>착수 트리거</b> 외부 인터넷에서 도달 가능한 호스트로 배포하는 시점(W4와 같은 트리거).</p>
+</article>
+<article class="item wait" data-v="wait" id="W7">
+<header><span class="id">W7</span><h3>텍스트 드래그 선택 댓글 / 요소 문맥(quote) 저장</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> coeditHTML</p>
+<p><b>무엇</b> 문장 일부를 드래그해 댓글을 달거나, 핀 생성 시 요소 텍스트 일부를 앵커에 함께 저장한다.</p>
+<p><b>보류 이유</b> 보고서·문서형 HTML에서 '이 문장'을 지칭하기엔 요소 핀이 거칠 수 있다. 그러나 텍스트 범위 앵커(Range 직렬화)는 콘텐츠가 바뀌면 깨지기 쉽고 브리지·검증 스키마 양쪽을 다 건드린다. 값싼 절충안은 핀 생성 때 요소 텍스트 일부를 저장하는 것인데, P1 내보내기를 써 보고 AI가 선택자만으로 요소를 못 찾을 때 그 필요가 확인된다.</p>
+<p class="trig"><b>착수 트리거</b> P1 결과물을 AI에 넣었을 때 '어느 요소인지 못 찾겠다'는 반응, 또는 문장 단위 지적이 핀 위치 설명으로 반복되는 댓글.</p>
+</article>
+<article class="item wait" data-v="wait" id="W8">
+<header><span class="id">W8</span><h3>이슈 트래커 연동(GitLab 등)</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> BugSmash(Jira · Linear · Trello)</p>
+<p><b>무엇</b> 댓글을 이슈로 보내거나 이슈 링크를 댓글에 붙인다.</p>
+<p><b>보류 이유</b> BugSmash가 보여 주는 방향이지만 외부 시스템 인증·웹훅·매핑이 따라와 사내 MVP에는 무겁다. 대부분의 용도는 P1 마크다운을 이슈에 붙여넣는 것으로 충족된다. 사내에서 GitLab을 쓴다면 그쪽이 대상이 될 텐데, 그 필요도 먼저 '붙여넣기 반복'으로 드러난다.</p>
+<p class="trig"><b>착수 트리거</b> P1 결과를 이슈에 옮겨 적는 일이 반복되고 소유자가 그것을 불편으로 말할 때.</p>
+</article>
+<article class="item wait" data-v="wait" id="W9">
+<header><span class="id">W9</span><h3>다중 파일(zip) 업로드</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> BugSmash(coeditHTML은 미지원 명시)</p>
+<p><b>무엇</b> CSS·JS·이미지가 분리된 프로젝트를 zip으로 올리고 상대 경로로 서빙한다.</p>
+<p><b>보류 이유</b> AI 코딩 도구가 폴더로 산출물을 내는 경우가 있어 요구가 나올 수 있다. 하지만 현재 콘텐츠 URL은 <code>/c/{token}</code> 하나이고 접근 조건이 토큰뿐이라는 단순함이 보안 모델의 핵심이다. 경로 단위 서빙·압축 해제(zip slip)·용량 관리가 한꺼번에 생기고 브리지 주입 대상 선정도 복잡해진다. 단일 HTML로 합쳐 달라고 AI에게 요청하는 우회가 가능하다.</p>
+<p class="trig"><b>착수 트리거</b> '단일 HTML로 못 합쳐서 올리지 못했다'는 실제 사례가 기록될 때.</p>
+</article>
+<article class="item wait" data-v="wait" id="W10">
+<header><span class="id">W10</span><h3>PDF 지원</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> commentable.link · Tiiny</p>
+<p><b>무엇</b> PDF를 올리고 페이지별 위치에 핀 댓글을 단다.</p>
+<p><b>보류 이유</b> 문서 검토 도구로 확장하는 일이고, Artipin의 대상(AI가 만든 HTML·이미지)과 다르다. PDF 렌더(pdf.js 등), 페이지 좌표계, 새 앵커 종류가 필요하다. 이미지로 내보낸 PDF 페이지를 올리면 현재 기능으로 대체된다.</p>
+<p class="trig"><b>착수 트리거</b> PDF 공유 요청이 반복되고 이미지 변환이 거절되는 경우.</p>
+</article>
+<article class="item wait" data-v="wait" id="W11">
+<header><span class="id">W11</span><h3>팀·워크스페이스(소유자 간 공용 목록·초대)</h3><span class="badge wait">적용 보류 · 트리거 대기</span></header>
+<p class="src"><b>벤치마크 근거</b> Artifact Share · BugSmash · HaveTML(Pro) · Tiiny(Pro)</p>
+<p><b>무엇</b> 여러 소유자가 파일 목록과 댓글을 함께 본다.</p>
+<p><b>보류 이유</b> 설계서가 팀 관리를 제외했고, 소유자 식별이 <code>(provider, provider_account_id)</code>라 같은 사람의 다른 제공자 계정이 별개 소유자가 되는 한계가 있다. 팀 기능은 이 식별 모델을 건드리는 큰 변경이라, 소유자 간 공유 요구가 확인되기 전에는 손대지 않는 편이 안전하다.</p>
+<p class="trig"><b>착수 트리거</b> '동료가 올린 파일의 댓글을 내가 처리해야 한다'는 요구가 2건 이상 나올 때.</p>
+</article>
+<article class="item skip" data-v="skip" id="S1">
+<header><span class="id">S1</span><h3>종단간 암호화(E2EE)</h3><span class="badge skip">적용 보류 · 방향 불일치</span></header>
+<p class="src"><b>벤치마크 근거</b> HaveTML · commentable.link</p>
+<p><b>무엇</b> 브라우저에서 암호화하고 키를 URL 해시에만 두어 서버가 내용을 못 읽게 한다.</p>
+<p><b>보류 이유</b> Artipin의 구조와 정면으로 충돌한다. 서버가 HTML에 브리지를 주입하고 CSP 헤더를 붙여 서빙하는 구조인데, E2EE에서는 복호화가 브라우저 안에서만 일어나 서버 주입이 불가능하다. 사내 서버를 신뢰하는 배포에서는 얻는 이득도 작다. 링크를 잃으면 복구할 수 없다는 비용도 사내 도구에 맞지 않는다.</p>
+</article>
+<article class="item skip" data-v="skip" id="S2">
+<header><span class="id">S2</span><h3>본문 직접 편집</h3><span class="badge skip">적용 보류 · 방향 불일치</span></header>
+<p class="src"><b>벤치마크 근거</b> coeditHTML · Tiiny</p>
+<p><b>무엇</b> 검토자나 소유자가 페이지 안에서 텍스트를 직접 고치고 수정본을 다운로드한다.</p>
+<p><b>보류 이유</b> Artipin의 가치는 '원본은 AI가 만들고, 사람은 의견만 남긴다'는 분리다. 편집을 넣으면 어느 쪽이 원본인지 모호해지고, 편집 결과를 반영하려면 샌드박스 안에서 DOM을 쓰고 저장하는 새 경로가 필요하다. AI에게 수정 지시를 하는 편이 빠르다.</p>
+</article>
+<article class="item skip" data-v="skip" id="S3">
+<header><span class="id">S3</span><h3>동적 JSON 상태 · 웹훅</h3><span class="badge skip">적용 보류 · 방향 불일치</span></header>
+<p class="src"><b>벤치마크 근거</b> HaveTML</p>
+<p><b>무엇</b> 페이지가 공유 JSON 상태를 유지하고 에이전트가 변경을 구독한다.</p>
+<p><b>보류 이유</b> Artipin은 콘텐츠에 <code>connect-src 'none'</code>을 걸어 업로드 HTML이 어디에도 요청을 못 보내게 하는 것이 보안 전제다. 이 기능은 그 전제를 반대로 푸는 것이고, 제품 정체성도 '검토 도구'에서 '앱 호스팅'으로 옮긴다.</p>
+</article>
+<article class="item skip" data-v="skip" id="S4">
+<header><span class="id">S4</span><h3>실시간 협업(접속자·커서) · 자동 갱신</h3><span class="badge skip">적용 보류 · 방향 불일치</span></header>
+<p class="src"><b>벤치마크 근거</b> HaveTML</p>
+<p><b>무엇</b> 다른 사람의 커서와 새 댓글이 새로고침 없이 반영된다.</p>
+<p><b>보류 이유</b> 설계서가 실시간 갱신을 제외했다. 단일 컨테이너 + SQLite에서 WebSocket·SSE를 유지하는 부담이 있고, 사용 방식(비동기 검토)과 맞지 않는다. 동시에 모여 검토하는 회의가 실제로 생기면 그때 폴링부터 검토한다.</p>
+</article>
+<article class="item skip" data-v="skip" id="S5">
+<header><span class="id">S5</span><h3>AI 자동 리뷰어(접근성·UI/UX·맞춤법·깨진 링크)</h3><span class="badge skip">적용 보류 · 방향 불일치</span></header>
+<p class="src"><b>벤치마크 근거</b> BugSmash</p>
+<p><b>무엇</b> 업로드 시 AI가 자동으로 점검하고 결과를 댓글로 남긴다.</p>
+<p><b>보류 이유</b> 사람의 피드백을 받는 도구에 AI 평가를 섞으면 제품이 둘로 갈라진다. 모델 호출 비용·키 관리·결과 품질 책임이 생기고, 같은 일은 소유자가 AI 도구에 직접 시키면 된다.</p>
+</article>
+<article class="item skip" data-v="skip" id="S6">
+<header><span class="id">S6</span><h3>캔버스 · Explore · Circles · 폴더 · 회의록 · 화이트라벨</h3><span class="badge skip">적용 보류 · 방향 불일치</span></header>
+<p class="src"><b>벤치마크 근거</b> HaveTML · Artifact Share · BugSmash</p>
+<p><b>무엇</b> 보드, 공개 탐색, 그룹 공유, 중첩 폴더, 회의록 정리, 고객사 브랜딩 포털.</p>
+<p><b>보류 이유</b> 문서 허브·에이전시 제품으로 가는 방향의 기능들이다. 웨지('링크 하나 + 핀 댓글')를 흐리고 사내 MVP의 검증 지표(전달·댓글·재업로드)와도 무관하다. 파일이 많아져 목록 정리가 필요해지면 폴더가 아니라 정렬·검색 같은 작은 도구부터 본다.</p>
+</article>
+</div>
+
+<h2><span class="n">6</span>권장 순서와 보류 항목 재검토 방법</h2>
+<div class="steps box">
+<div class="step"><b>P1 피드백 마크다운 내보내기</b> — 가장 작고 근거가 크다. 만든 직후부터 소유자가 실제로 AI에 되먹이는지 관찰한다.</div>
+<div class="step"><b>P2 같은 링크로 새 버전 교체</b> — P1과 독립이라 병행 가능. 교체 직후 콘텐츠 캐시 동작과, 지표 (c)의 정의 변화를 같이 확인한다.</div>
+<div class="step"><b>2주 관찰 후 트리거 점검</b> — 아래 표를 기준으로 보류 항목을 다시 본다. 조건이 확인된 것만 이슈로 만든다.</div>
+</div>
+
+<div class="tw">
+<table class="tt">
+<thead><tr><th>보류 항목</th><th>무엇을 보고 판단하는가</th></tr></thead>
+<tbody>
+<tr><th scope="row">W1 AI 연동</th><td>P1 내보내기 사용 빈도, 복사·붙여넣기가 번거롭다는 발언</td></tr>
+<tr><th scope="row">W2 뷰포트</th><td>댓글 본문에서 모바일·반응형 언급 횟수</td></tr>
+<tr><th scope="row">W3 Markdown</th><td>.md 거절 기록, 변환 후 재업로드 사례(관찰·인터뷰)</td></tr>
+<tr><th scope="row">W4·W6 접근 제어·noindex</th><td>사외 공유 시작 여부(배포 구성 변경)</td></tr>
+<tr><th scope="row">W5 보기 전용</th><td>공유를 망설인 이유 인터뷰</td></tr>
+<tr><th scope="row">W7 문맥 저장</th><td>P1 결과를 AI에 넣었을 때 요소를 못 찾은 사례</td></tr>
+<tr><th scope="row">W8~W11</th><td>이슈로 옮겨 적기 반복, 단일 HTML로 못 합친 사례, PDF 요청, 소유자 간 공유 요구</td></tr>
+</tbody>
+</table>
+</div>
+
+<p class="meta" style="margin-top:32px">조사 출처: coedithtml.com · havetml.com · artifactshare.com · commentable.link · tiiny.host/feature/feedback-mode · bugsmash.io/html-feedback (각 페이지 본문 기준, 2026-10-19). Artipin 현황: <code>docs/designs/artipin-mvp.md</code>, <code>src/</code> 코드.</p>
+</div>
+<script>
+(function(){
+  var btns=document.querySelectorAll('.filters button'),items=document.querySelectorAll('#items .item');
+  btns.forEach(function(b){b.addEventListener('click',function(){
+    var f=b.getAttribute('data-f');
+    btns.forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});
+    items.forEach(function(i){i.classList.toggle('hidden',f!=='all'&&i.getAttribute('data-v')!==f)});
+  })});
+})();
+</script>
+</body>
+</html>
