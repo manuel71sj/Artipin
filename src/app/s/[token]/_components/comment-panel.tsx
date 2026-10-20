@@ -29,28 +29,14 @@ export type HtmlPin = {
 };
 export type PendingPin = ImagePin | HtmlPin;
 
-// 머리 줄: 핀 점, 작성자·시각, 오른쪽 끝에 삭제 아이콘. 핀 점은 장식이라 글로 따로 읽어 준다.
-function Head({
-  c,
-  pinNo,
-  onDelete,
-}: {
-  c: ReplyItem;
-  pinNo?: number | null;
-  onDelete: () => void;
-}) {
+// 답글 머리 줄: 작성자·시각, 오른쪽 끝에 삭제 아이콘.
+function ReplyHead({ c, onDelete }: { c: ReplyItem; onDelete: () => void }) {
   return (
-    <div className="comment-head">
-      {pinNo != null ? (
-        <span className="comment-pin" aria-hidden="true">
-          {pinNo}
-        </span>
-      ) : null}
+    <div className="comment-reply-head">
       <p className="comment-meta">
-        {pinNo != null ? <span className="sr-only">핀 {pinNo}, </span> : null}
         <strong>{c.authorName}</strong>
         {c.isOwner ? <span className="comment-sub"> (소유자)</span> : null}{" "}
-        <span className="comment-sub comment-time">{c.createdLabel}</span>
+        <span className="comment-sub">{c.createdLabel}</span>
       </p>
       {c.canDelete ? <DeleteButton c={c} onClick={onDelete} /> : null}
     </div>
@@ -86,7 +72,16 @@ function DeleteButton({ c, onClick }: { c: ReplyItem; onClick: () => void }) {
   );
 }
 
-// 파일 종류와 무관한 댓글 목록. 작성은 뷰어가 핀 위치에 띄우는 NewCommentPopover가 맡는다.
+type Filter = "all" | "open" | "resolved";
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "open", label: "미해결" },
+  { value: "resolved", label: "해결" },
+];
+
+// 파일 종류와 무관한 댓글 목록. 한 줄로 접어 두고 누른 행만 펼친다(펼칠 때 핀 위치로 이동).
+// 작성은 뷰어가 핀 위치에 띄우는 NewCommentPopover가 맡는다.
 export function CommentPanel({
   items,
   isOwner,
@@ -98,6 +93,19 @@ export function CommentPanel({
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const openCount = items.filter((c) => !c.resolved).length;
+  const shown = items.filter(
+    (c) => filter === "all" || (filter === "open" ? !c.resolved : c.resolved),
+  );
+
+  function toggle(c: CommentItem) {
+    const expanding = expandedId !== c.id;
+    setExpandedId(expanding ? c.id : null);
+    if (expanding && (c.pin || c.htmlPin)) onSelect(c);
+  }
 
   async function toggleResolved(c: CommentItem) {
     const res = await fetch(`/api/comments/${c.id}/resolve`, {
@@ -117,52 +125,98 @@ export function CommentPanel({
 
   return (
     <aside className="comments">
+      <div className="comments-head">
+        <h2>댓글</h2>
+        <span className="comments-count">
+          미해결 {openCount} / 전체 {items.length}
+        </span>
+        <div className="comments-filter">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              aria-pressed={filter === f.value}
+              onClick={() => setFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
       {items.length === 0 ? (
         <p className="comment-empty">
-          아직 댓글이 없습니다. 첫 댓글을 남겨 보세요.
+          아직 댓글이 없습니다. 댓글 모드에서 화면을 눌러 첫 댓글을 남겨 보세요.
         </p>
-      ) : null}
-      <ul>
-        {items.map((c) => (
-          <li key={c.id} className={c.resolved ? "resolved" : undefined}>
-            <Head c={c} pinNo={c.pinNo} onDelete={() => remove(c.id)} />
-            {c.pin || c.htmlPin ? (
-              <button
-                type="button"
-                className="comment-body comment-body-pin"
-                title="핀 위치로 이동"
-                onClick={() => onSelect(c)}
+      ) : (
+        <ul>
+          {shown.map((c) => {
+            const expanded = expandedId === c.id;
+            return (
+              <li
+                key={c.id}
+                className={`comment${c.resolved ? " resolved" : ""}${expanded ? " expanded" : ""}`}
               >
-                {c.body}
-              </button>
-            ) : (
-              <p className="comment-body">{c.body}</p>
-            )}
-            <div className="comment-actions">
-              {isOwner ? (
                 <button
                   type="button"
-                  aria-label={`${c.authorName}님의 댓글 ${c.resolved ? "재개" : "해결"}`}
-                  onClick={() => toggleResolved(c)}
+                  className="comment-line"
+                  aria-expanded={expanded}
+                  onClick={() => toggle(c)}
                 >
-                  {c.resolved ? "재개" : "해결"}
+                  {c.pinNo != null ? (
+                    <span className="comment-pin" aria-hidden="true">
+                      {c.pinNo}
+                    </span>
+                  ) : (
+                    <span aria-hidden="true" />
+                  )}
+                  <span className="comment-author">
+                    {c.pinNo != null ? (
+                      <span className="sr-only">핀 {c.pinNo}, </span>
+                    ) : null}
+                    {c.authorName}
+                  </span>
+                  <span className="comment-snippet">
+                    {expanded ? "" : c.body}
+                  </span>
+                  <span className="comment-time">{c.createdLabel}</span>
                 </button>
-              ) : null}
-              {c.resolved ? <span>해결됨</span> : null}
-            </div>
-            {c.replies.length > 0 ? (
-              <ul className="replies">
-                {c.replies.map((r) => (
-                  <li key={r.id}>
-                    <Head c={r} onDelete={() => remove(r.id)} />
-                    <p className="comment-body">{r.body}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </li>
-        ))}
-      </ul>
+                {expanded ? (
+                  <div className="comment-detail">
+                    <p className="comment-body">{c.body}</p>
+                    {c.replies.map((r) => (
+                      <div key={r.id} className="comment-reply">
+                        <ReplyHead c={r} onDelete={() => remove(r.id)} />
+                        <p className="comment-body">{r.body}</p>
+                      </div>
+                    ))}
+                    {isOwner || c.canDelete ? (
+                      <div className="comment-actions">
+                        {isOwner ? (
+                          <button
+                            type="button"
+                            className={c.resolved ? undefined : "primary"}
+                            aria-label={`${c.authorName}님의 댓글 ${c.resolved ? "재개" : "해결"}`}
+                            onClick={() => toggleResolved(c)}
+                          >
+                            {c.resolved ? "재개" : "해결"}
+                          </button>
+                        ) : null}
+                        {c.canDelete ? (
+                          <DeleteButton c={c} onClick={() => remove(c.id)} />
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="comments-hint">
+        로그인 없이 이름만 입력하면 댓글을 달 수 있습니다. 줄을 누르면 펼쳐지고
+        핀 위치로 이동합니다.
+      </p>
 
       {error ? (
         <p className="comment-error" role="alert">

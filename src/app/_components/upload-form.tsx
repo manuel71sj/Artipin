@@ -68,73 +68,60 @@ export function UploadForm() {
         if (file) upload(file);
       }}
     >
-      <div className={styles.intro}>
+      <div className={styles.strip}>
         <h1 className={styles.title}>파일을 놓으면 링크가 됩니다</h1>
-        <div className={styles.pick}>
-          <label>
-            <input
-              className={styles.file}
-              type="file"
-              disabled={busy}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) upload(file);
-                e.target.value = "";
-              }}
-            />
-            <span className={styles.pickButton}>
-              {busy ? "올리는 중…" : "파일 선택"}
-            </span>
-          </label>
-          <span className={styles.hint}>
-            {dragging
-              ? "놓으면 바로 올립니다"
-              : "또는 이 영역에 끌어다 놓으세요"}
-          </span>
-        </div>
-
-        <details className={styles.paste}>
-          <summary>HTML 코드를 붙여넣어 올리기</summary>
-          <textarea
-            className={styles.pasteInput}
-            value={html}
+        <label>
+          <input
+            className={styles.file}
+            type="file"
             disabled={busy}
-            rows={8}
-            spellCheck={false}
-            aria-label="HTML 코드"
-            placeholder="Claude·ChatGPT 아티팩트의 HTML 코드를 복사해 붙여넣으세요"
-            onChange={(e) => setHtml(e.target.value)}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) upload(file);
+              e.target.value = "";
+            }}
           />
-          <button
-            type="button"
-            className={`${styles.pickButton} ${styles.pasteSubmit}`}
-            disabled={busy || !html.trim()}
-            onClick={uploadHtml}
-          >
-            {busy ? "올리는 중…" : "링크 만들기"}
-          </button>
-        </details>
-
-        <output className="sr-only">
-          {done ? "업로드했습니다. 아래 목록에 추가되었습니다." : ""}
-        </output>
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
+          <span className={styles.pickButton}>
+            {busy ? "올리는 중…" : "파일 선택"}
+          </span>
+        </label>
+        <span className={styles.hint}>
+          {dragging
+            ? "놓으면 바로 올립니다"
+            : "HTML 5MB, 이미지(PNG·JPG·WebP) 10MB 이하"}
+        </span>
       </div>
 
-      <dl className={styles.spec}>
-        <div>
-          <dt>이미지</dt>
-          <dd>PNG·JPG·WebP, 10MB 이하</dd>
-        </div>
-        <div>
-          <dt>HTML</dt>
-          <dd>독립형 파일, 5MB 이하</dd>
-        </div>
-      </dl>
+      <details className={styles.paste}>
+        <summary>HTML 코드를 붙여넣어 올리기</summary>
+        <textarea
+          className={styles.pasteInput}
+          value={html}
+          disabled={busy}
+          rows={8}
+          spellCheck={false}
+          aria-label="HTML 코드"
+          placeholder="Claude·ChatGPT 아티팩트의 HTML 코드를 복사해 붙여넣으세요"
+          onChange={(e) => setHtml(e.target.value)}
+        />
+        <button
+          type="button"
+          className={`${styles.pickButton} ${styles.pasteSubmit}`}
+          disabled={busy || !html.trim()}
+          onClick={uploadHtml}
+        >
+          {busy ? "올리는 중…" : "링크 만들기"}
+        </button>
+      </details>
+
+      <output className="sr-only">
+        {done ? "업로드했습니다. 아래 목록에 추가되었습니다." : ""}
+      </output>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

@@ -84,7 +84,7 @@ const BRIDGE = `(function () {
     if (mode !== "comment") return;
     pins.forEach(function (p) {
       var el = find(p.selector);
-      if (el) addBox(el, p.resolved ? "#475569" : "#c93036", "solid");
+      if (el) addBox(el, p.resolved ? "#2a7a57" : "#d92d27", "solid");
     });
     var picked = pickedSel ? find(pickedSel) : null;
     if (picked) addBox(picked, "#2563eb", "solid");
@@ -152,9 +152,9 @@ const BRIDGE = `(function () {
       d.textContent = String(p.n);
       d.style.cssText =
         "position:absolute;z-index:2147483647;pointer-events:auto;cursor:pointer;margin:0;padding:0;" +
-        "box-sizing:border-box;width:24px;height:24px;border-radius:50%;background:" + (p.resolved ? "#475569" : "#c93036") + ";" +
-        "color:#fff;font:12px/24px Arial,sans-serif;text-align:center;" +
-        "transform:translate(-50%,-50%);font-weight:700;" +
+        "box-sizing:border-box;width:22px;height:22px;border:2px solid #fff;border-radius:50%;background:" + (p.resolved ? "#2a7a57" : "#d92d27") + ";" +
+        "color:#fff;font:600 11.5px/18px Arial,sans-serif;text-align:center;" +
+        "transform:translate(-50%,-50%);" +
         "left:" + (r.left + window.scrollX + p.relX * r.width) + "px;" +
         "top:" + (r.top + window.scrollY + p.relY * r.height) + "px;";
       document.documentElement.appendChild(d);

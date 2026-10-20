@@ -5,21 +5,13 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
+import { relativeTime } from "@/lib/time";
 import { readVisitorId } from "@/lib/visitor";
 import type { CommentItem } from "./_components/comment-panel";
+import { CopyLink } from "./_components/copy-link";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
 import { ViewBeacon } from "./_components/view-beacon";
-
-// 댓글 머리 줄에 한 줄로 들어가도록 연도와 초는 뺀다
-const label = (ms: number) =>
-  new Date(ms).toLocaleString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 export default async function SharePage({
   params,
@@ -76,7 +68,7 @@ export default async function SharePage({
         authorName: c.authorName,
         isOwner: c.isOwner,
         body: c.body,
-        createdLabel: label(c.createdAt),
+        createdLabel: relativeTime(c.createdAt),
         canDelete: can(c.visitorId),
         resolved: c.resolvedAt !== null,
         pin,
@@ -89,26 +81,39 @@ export default async function SharePage({
             authorName: r.authorName,
             isOwner: r.isOwner,
             body: r.body,
-            createdLabel: label(r.createdAt),
+            createdLabel: relativeTime(r.createdAt),
             canDelete: can(r.visitorId),
           })),
       };
     });
 
-  // 링크를 받은 사람이 무엇을 보고 있는지 알 수 있도록 제목과 종류를 상단 바에 둔다.
+  // 링크를 받은 사람이 무엇을 보고 있는지 알 수 있도록 제목·종류·올린 시각을 상단에 둔다.
   const bar = (
-    <header className="share-bar">
-      <span className="share-brand" translate="no">
-        <span className="share-brand-dot" aria-hidden="true" />
-        Artipin
-      </span>
-      <h1 className="share-title" title={file.title}>
-        {file.title}
-      </h1>
-      <span className="share-kind">
-        {file.kind === "image" ? "이미지" : "HTML"}
-      </span>
-    </header>
+    <>
+      <header className="share-bar">
+        <span className="share-brand" translate="no">
+          <span className="share-brand-dot" aria-hidden="true" />
+          Artipin
+        </span>
+        <CopyLink />
+      </header>
+      <div className="share-head">
+        <h1 className="share-title">{file.title}</h1>
+        <span className="share-kind">
+          {file.kind === "image" ? "이미지" : "HTML"}
+        </span>
+        <span className="share-when">
+          {new Date(file.createdAt).toLocaleString("ko-KR", {
+            timeZone: "Asia/Seoul",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}{" "}
+          올림
+        </span>
+      </div>
+    </>
   );
 
   if (file.kind === "html") {

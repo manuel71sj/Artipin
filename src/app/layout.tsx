@@ -1,27 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import {
-  Atkinson_Hyperlegible_Next,
-  Hahmlet,
-  Noto_Sans_KR,
-} from "next/font/google";
+import { IBM_Plex_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import "./globals.css";
 
-// 제목(워드마크·h1·h2)은 Hahmlet 700, 본문은 영문·숫자 Atkinson + 한글 Noto Sans KR(font-family 순서로 글리프 단위 폴백).
-const display = Hahmlet({
+// 제목(h1)은 Noto Serif KR 700, 본문은 IBM Plex Sans KR(영문·숫자·한글 한 가족).
+const display = Noto_Serif_KR({
   variable: "--font-display",
   subsets: ["latin"],
+  weight: "700",
 });
 
-const latin = Atkinson_Hyperlegible_Next({
-  variable: "--font-latin",
+const body = IBM_Plex_Sans_KR({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
-
-const hangul = Noto_Sans_KR({
-  variable: "--font-hangul",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Artipin",
   description: "AI가 만든 HTML·이미지를 링크로 공유하고 핀 댓글을 받습니다.",
@@ -30,8 +22,8 @@ export const metadata: Metadata = {
 // 주소창·상태바 색을 페이지 배경(--color-background)과 맞춘다.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+    { media: "(prefers-color-scheme: light)", color: "#f4f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1114" },
   ],
 };
 
@@ -39,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
-      className={`${display.variable} ${latin.variable} ${hangul.variable}`}
+      className={`${display.variable} ${body.variable}`}
       suppressHydrationWarning
     >
       <body>

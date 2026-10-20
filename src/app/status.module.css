@@ -1,48 +1,45 @@
 .page {
   flex: 1;
   width: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: var(--space-3) var(--space-4) var(--space-7);
 }
 
 .bar {
   display: flex;
   align-items: center;
-  padding-bottom: var(--space-3);
-  border-bottom: 2px solid var(--color-foreground);
+  height: 40px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-card);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-display-stack);
+  gap: 7px;
   font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 .brandDot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--color-pin);
 }
 
-/* 12컬럼 그리드의 본문 7칸에 맞춘다 */
 .main {
   max-width: 640px;
-  margin-top: var(--space-7);
+  margin: var(--space-6) auto 0;
+  padding: 0 var(--space-3);
 }
 
 .title {
   min-width: 0;
   font-family: var(--font-display-stack);
-  font-size: clamp(28px, 5vw, var(--text-2xl));
+  font-size: var(--text-2xl);
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   word-break: keep-all;
   overflow-wrap: anywhere;
   text-wrap: balance;
@@ -64,7 +61,7 @@
 
 .reasons {
   margin-top: var(--space-5);
-  border-top: 2px solid var(--color-foreground);
+  border-top: 1px solid var(--color-foreground);
   font-size: var(--text-sm);
 }
 
@@ -74,7 +71,7 @@
 }
 
 .reasons dt {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .reasons dd {
@@ -108,14 +105,14 @@
 .button {
   display: inline-flex;
   align-items: center;
-  min-height: 48px;
-  padding: 0 var(--space-4);
+  min-height: var(--control);
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius);
   background: var(--color-primary);
   color: var(--color-on-primary);
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -136,7 +133,7 @@
 .link {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--control);
   text-decoration: underline;
   text-decoration-color: var(--color-border);
   text-underline-offset: 4px;

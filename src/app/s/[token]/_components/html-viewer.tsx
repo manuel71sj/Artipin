@@ -196,6 +196,9 @@ export function HtmlViewer({
           disabled={!bridgeReady}
           onChange={setMode}
         />
+        {commentMode ? (
+          <p className="viewer-note">화면의 원하는 위치를 클릭하세요.</p>
+        ) : null}
         {timedOut && !bridgeReady ? (
           <p className="viewer-note">
             이 파일은 핀 댓글을 지원하지 않을 수 있습니다.

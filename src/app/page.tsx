@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
+import { relativeTime } from "@/lib/time";
 import { FileActions } from "./_components/file-actions";
 import { UploadForm } from "./_components/upload-form";
 import styles from "./home.module.css";
@@ -71,13 +72,15 @@ export default async function Home() {
           <ul className={styles.list}>
             {myFiles.map((f) => (
               <li key={f.id} className={styles.row}>
-                <span className={styles.kind}>
-                  {f.kind === "image" ? "이미지" : "HTML"}
-                </span>
                 <span className={styles.titleCell}>
                   <a className={styles.name} href={`/s/${f.shareToken}`}>
                     {f.title}
                   </a>
+                  <span className={styles.kind}>
+                    {f.kind === "image" ? "이미지" : "HTML"}
+                  </span>
+                </span>
+                <span className={styles.pinCell}>
                   {f.open > 0 && (
                     <span className={styles.pinCount}>
                       <span aria-hidden="true">{f.open}</span>
@@ -85,13 +88,7 @@ export default async function Home() {
                     </span>
                   )}
                 </span>
-                <span className={styles.when}>
-                  {new Date(f.createdAt).toLocaleString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </span>
+                <span className={styles.when}>{relativeTime(f.createdAt)}</span>
                 <FileActions id={f.id} path={`/s/${f.shareToken}`} />
               </li>
             ))}
