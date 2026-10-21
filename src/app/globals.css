@@ -371,6 +371,15 @@ label,
 
 .html-stage {
   position: relative;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+/* 모드 전환과 뷰포트 전환을 한 줄에 둔다 */
+.viewer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* 댓글 박스: 핀에 꽂힌 메모 한 장. 그림자·둥근 카드 없이 테두리와 핀 색 윗선만 쓴다.

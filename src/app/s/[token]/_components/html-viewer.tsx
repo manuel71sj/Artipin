@@ -7,6 +7,13 @@ import { NewCommentPopover, PinPopover } from "./pin-popover";
 
 const BRIDGE_TIMEOUT_MS = 3000;
 
+// 반응형 확인용 iframe 폭. null은 뷰어 폭 전체다. 선택은 저장하지 않는다.
+const VIEWPORTS = [
+  { label: "데스크톱", width: null },
+  { label: "태블릿", width: 768 },
+  { label: "모바일", width: 390 },
+] as const;
+
 const isRel = (v: unknown): v is number =>
   typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1;
 
@@ -78,6 +85,7 @@ export function HtmlViewer({
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [commentMode, setCommentMode] = useState(false);
+  const [viewport, setViewport] = useState<number | null>(null);
   // x·y는 클릭한 자리(iframe 안 뷰포트 좌표)로, 새 댓글 박스를 놓는 기준이다.
   const [pending, setPending] = useState<{
     anchor: HtmlPin;
@@ -191,11 +199,25 @@ export function HtmlViewer({
   return (
     <>
       <section className="viewer">
-        <ModeToggle
-          commentMode={commentMode}
-          disabled={!bridgeReady}
-          onChange={setMode}
-        />
+        <div className="viewer-tools">
+          <ModeToggle
+            commentMode={commentMode}
+            disabled={!bridgeReady}
+            onChange={setMode}
+          />
+          <div className="mode-toggle">
+            {VIEWPORTS.map((v) => (
+              <button
+                key={v.label}
+                type="button"
+                aria-pressed={viewport === v.width}
+                onClick={() => setViewport(v.width)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {commentMode ? (
           <p className="viewer-note">화면의 원하는 위치를 클릭하세요.</p>
         ) : null}
@@ -204,7 +226,11 @@ export function HtmlViewer({
             이 파일은 핀 댓글을 지원하지 않을 수 있습니다.
           </p>
         ) : null}
-        <div className="html-stage">
+        {/* 핀 박스가 iframe 기준 좌표로 놓이므로 iframe과 함께 무대 폭을 줄인다 */}
+        <div
+          className="html-stage"
+          style={viewport ? { width: `${viewport}px` } : undefined}
+        >
           {listening ? (
             <iframe
               ref={iframeRef}
