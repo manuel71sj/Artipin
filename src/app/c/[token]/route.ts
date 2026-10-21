@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { files } from "@/db/schema";
+import { files, fileVersions } from "@/db/schema";
 import { injectBridge } from "@/lib/bridge";
 import { appOrigin } from "@/lib/hosts";
 import { readFile } from "@/lib/storage";
@@ -9,14 +9,30 @@ import { imageMime } from "@/lib/upload";
 
 // CONTENT_HOST에서만 도달한다(호스트 분기는 proxy.ts). 업로드 본문을 앱과 다른 origin에서 서빙한다.
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const [file] = await db
-    .select({ kind: files.kind, storagePath: files.storagePath })
-    .from(files)
-    .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
+  // ?v={no}가 있으면 그 버전의 본문을 서빙한다. 같은 토큰을 아는 사람에게 열려 있다(위협 모델 문서 참조).
+  const v = request.nextUrl.searchParams.get("v");
+  if (v !== null && !/^\d+$/.test(v))
+    return new NextResponse(null, { status: 404 });
+  const [file] = v
+    ? await db
+        .select({ kind: files.kind, storagePath: fileVersions.storagePath })
+        .from(files)
+        .innerJoin(fileVersions, eq(fileVersions.fileId, files.id))
+        .where(
+          and(
+            eq(files.shareToken, token),
+            isNull(files.deletedAt),
+            eq(fileVersions.no, Number(v)),
+          ),
+        )
+    : await db
+        .select({ kind: files.kind, storagePath: files.storagePath })
+        .from(files)
+        .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
   if (!file) return new NextResponse(null, { status: 404 });
 
   let body: Buffer;

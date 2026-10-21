@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { files } from "@/db/schema";
+import { files, fileVersions } from "@/db/schema";
 import { saveFile } from "@/lib/storage";
 import { checkUpload } from "@/lib/upload";
 
@@ -35,13 +35,29 @@ export async function POST(request: Request) {
 
   const shareToken = randomBytes(16).toString("base64url");
   const storagePath = await saveFile(data);
-  await db.insert(files).values({
-    ownerId: Number(session.user.id),
-    kind: check.kind,
-    title: file.name,
-    storagePath,
-    size: data.length,
-    shareToken,
+  // 현재 본문 = 최대 no 버전이라는 불변식을 지키려고 files와 no=1 행을 한 트랜잭션에 만든다.
+  db.transaction((tx) => {
+    const { id } = tx
+      .insert(files)
+      .values({
+        ownerId: Number(session.user.id),
+        kind: check.kind,
+        title: file.name,
+        storagePath,
+        size: data.length,
+        shareToken,
+      })
+      .returning({ id: files.id })
+      .get();
+    tx.insert(fileVersions)
+      .values({
+        fileId: id,
+        no: 1,
+        storagePath,
+        size: data.length,
+        title: file.name,
+      })
+      .run();
   });
   return NextResponse.json({ shareToken }, { status: 201 });
 }

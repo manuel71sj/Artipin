@@ -1,8 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { files } from "@/db/schema";
+import { files, fileVersions } from "@/db/schema";
 import { removeFile, saveFile } from "@/lib/storage";
 import { checkUpload } from "@/lib/upload";
 
@@ -18,7 +18,7 @@ export async function DELETE(
     );
 
   const { id } = await params;
-  // 행·댓글·조회 행은 남기고 deleted_at만 기록한다. 본문 파일만 지운다.
+  // 행·댓글·조회 행은 남기고 deleted_at만 기록한다. 모든 버전의 본문 파일을 지운다.
   const [deleted] = await db
     .update(files)
     .set({ deletedAt: Date.now() })
@@ -29,18 +29,23 @@ export async function DELETE(
         isNull(files.deletedAt),
       ),
     )
-    .returning({ storagePath: files.storagePath });
+    .returning({ id: files.id });
   if (!deleted)
     return NextResponse.json(
       { error: "파일을 찾을 수 없습니다." },
       { status: 404 },
     );
 
-  await removeFile(deleted.storagePath);
+  // 롤백 행은 이전 버전과 같은 storage_path를 가리키므로 중복을 걷어낸다.
+  const paths = await db
+    .selectDistinct({ storagePath: fileVersions.storagePath })
+    .from(fileVersions)
+    .where(eq(fileVersions.fileId, deleted.id));
+  await Promise.all(paths.map((p) => removeFile(p.storagePath)));
   return new NextResponse(null, { status: 204 });
 }
 
-// 같은 행의 본문만 바꾼다. share_token·댓글·조회 기록은 files.id에 묶여 그대로 남는다.
+// 같은 행의 본문만 바꾼다. share_token·댓글·조회 기록은 files.id에 묶여 그대로 남고, 이전 본문은 버전으로 보관한다.
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -73,7 +78,7 @@ export async function PUT(
 
   const { id } = await params;
   const [row] = await db
-    .select({ kind: files.kind, storagePath: files.storagePath })
+    .select({ kind: files.kind })
     .from(files)
     .where(
       and(
@@ -94,17 +99,27 @@ export async function PUT(
       { status: 400 },
     );
 
-  // 새 파일을 먼저 저장하고 행을 갱신한 뒤 이전 파일을 지운다. 갱신 전까지는 이전 본문이 서빙된다.
+  // 새 파일을 먼저 저장하고 버전 행 추가와 행 갱신을 한 트랜잭션에 묶는다. 갱신 전까지는 이전 본문이 서빙된다.
   const storagePath = await saveFile(data);
-  await db
-    .update(files)
-    .set({
-      storagePath,
-      size: data.length,
-      title: file.name,
-      replacedAt: Date.now(),
-    })
-    .where(eq(files.id, Number(id)));
-  await removeFile(row.storagePath);
+  db.transaction((tx) => {
+    tx.insert(fileVersions)
+      .values({
+        fileId: Number(id),
+        no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${Number(id)})`,
+        storagePath,
+        size: data.length,
+        title: file.name,
+      })
+      .run();
+    tx.update(files)
+      .set({
+        storagePath,
+        size: data.length,
+        title: file.name,
+        replacedAt: Date.now(),
+      })
+      .where(eq(files.id, Number(id)))
+      .run();
+  });
   return new NextResponse(null, { status: 204 });
 }

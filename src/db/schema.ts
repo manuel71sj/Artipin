@@ -42,6 +42,22 @@ export const files = sqliteTable("files", {
   replacedAt: integer("replaced_at"),
 });
 
+export const fileVersions = sqliteTable(
+  "file_versions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    fileId: integer("file_id")
+      .notNull()
+      .references(() => files.id),
+    no: integer("no").notNull(),
+    storagePath: text("storage_path").notNull(),
+    size: integer("size").notNull(),
+    title: text("title").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [uniqueIndex("file_versions_file_no_unique").on(t.fileId, t.no)],
+);
+
 export const comments = sqliteTable(
   "comments",
   {

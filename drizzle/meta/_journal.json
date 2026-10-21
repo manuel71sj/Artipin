@@ -22,6 +22,13 @@
       "when": 1792578734664,
       "tag": "0002_old_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792580563047,
+      "tag": "0003_normal_cobalt_man",
+      "breakpoints": true
     }
   ]
 }

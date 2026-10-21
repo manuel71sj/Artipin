@@ -7,7 +7,7 @@ import styles from "../home.module.css";
 type CopyState = "idle" | "copied" | "failed";
 // 삭제는 파일 본문을 지우는 되돌릴 수 없는 작업이라 같은 자리에서 한 번 더 확인한다.
 type DeleteState = "idle" | "confirm" | "deleting" | "failed";
-// 교체도 이전 본문을 되돌릴 수 없으므로 파일을 고른 뒤 한 번 더 확인한다.
+// 교체는 핀 위치를 어긋나게 할 수 있으므로 파일을 고른 뒤 한 번 더 확인한다. 이전 본문은 버전으로 남는다.
 type ReplaceState = "idle" | "confirm" | "replacing" | "failed";
 
 const COPY_LABEL: Record<CopyState, string> = {
@@ -79,8 +79,8 @@ export function FileActions({ id, path }: { id: number; path: string }) {
     <div className={styles.actions}>
       {replacing ? (
         <span className={styles.replaceNote}>
-          이전 본문은 복구할 수 없습니다. 댓글은 유지되며, 위치가 맞지 않는 핀은
-          목록에만 표시됩니다.
+          이전 본문은 버전 기록에 남아 뷰어에서 되돌릴 수 있습니다. 댓글은
+          유지되며, 위치가 맞지 않는 핀은 목록에만 표시됩니다.
         </span>
       ) : null}
       {confirming || replacing ? null : (

@@ -1,9 +1,9 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { preconnect } from "react-dom";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { comments, files } from "@/db/schema";
+import { comments, files, fileVersions } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
 import { relativeTime } from "@/lib/time";
 import { readVisitorId } from "@/lib/visitor";
@@ -11,6 +11,7 @@ import type { CommentItem } from "./_components/comment-panel";
 import { CopyLink } from "./_components/copy-link";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
+import { VersionList } from "./_components/version-list";
 import { ViewBeacon } from "./_components/view-beacon";
 
 export default async function SharePage({
@@ -33,6 +34,15 @@ export default async function SharePage({
   // 쿠키가 httpOnly라 삭제 가능 여부는 서버에서 계산한다.
   const visitorId = await readVisitorId();
   const can = (v: string) => isOwner || (visitorId !== null && v === visitorId);
+
+  // 버전 목록은 소유자에게만 조회·렌더한다. 최대 no가 현재 본문이다.
+  const versions = isOwner
+    ? await db
+        .select()
+        .from(fileVersions)
+        .where(eq(fileVersions.fileId, file.id))
+        .orderBy(desc(fileVersions.no))
+    : [];
 
   const rows = await db
     .select()
@@ -113,6 +123,19 @@ export default async function SharePage({
           올림
         </span>
       </div>
+      {isOwner ? (
+        <VersionList
+          fileId={file.id}
+          token={token}
+          contentBase={contentOrigin()}
+          versions={versions.map((v, i) => ({
+            no: v.no,
+            createdLabel: relativeTime(v.createdAt),
+            size: v.size,
+            current: i === 0,
+          }))}
+        />
+      ) : null}
     </>
   );
 
@@ -122,7 +145,9 @@ export default async function SharePage({
         {bar}
         <main id="main" className="share">
           <ViewBeacon token={token} />
+          {/* 롤백은 iframe src(/c/{token})를 바꾸지 않으므로 본문이 바뀌면 재마운트해 다시 불러온다 */}
           <HtmlViewer
+            key={file.storagePath}
             src={`${contentOrigin()}/c/${token}`}
             token={token}
             items={items}
@@ -138,8 +163,10 @@ export default async function SharePage({
       {bar}
       <main id="main" className="share">
         <ViewBeacon token={token} />
+        {/* 같은 URL의 이미지는 재사용되므로 교체·롤백 뒤에는 ?t=로 URL을 바꾼다 */}
         <ImageViewer
-          src={`${contentOrigin()}/c/${token}`}
+          key={file.storagePath}
+          src={`${contentOrigin()}/c/${token}${file.replacedAt ? `?t=${file.replacedAt}` : ""}`}
           alt={file.title}
           token={token}
           items={items}
