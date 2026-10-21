@@ -21,7 +21,7 @@ export default async function Home() {
       shareToken: files.shareToken,
       createdAt: files.createdAt,
       replacedAt: files.replacedAt,
-      open: sql<number>`count(case when ${comments.parentId} is null and ${comments.resolvedAt} is null then 1 end)`.mapWith(
+      open: sql<number>`count(case when ${comments.id} is not null and ${comments.parentId} is null and ${comments.resolvedAt} is null then 1 end)`.mapWith(
         Number,
       ),
     })
