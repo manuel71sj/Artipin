@@ -15,6 +15,13 @@
       "when": 1792235049108,
       "tag": "0001_wild_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792578734664,
+      "tag": "0002_old_titania",
+      "breakpoints": true
     }
   ]
 }

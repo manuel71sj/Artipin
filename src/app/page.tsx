@@ -20,6 +20,7 @@ export default async function Home() {
       kind: files.kind,
       shareToken: files.shareToken,
       createdAt: files.createdAt,
+      replacedAt: files.replacedAt,
       open: sql<number>`count(case when ${comments.parentId} is null and ${comments.resolvedAt} is null then 1 end)`.mapWith(
         Number,
       ),
@@ -88,7 +89,11 @@ export default async function Home() {
                     </span>
                   )}
                 </span>
-                <span className={styles.when}>{relativeTime(f.createdAt)}</span>
+                <span className={styles.when}>
+                  {f.replacedAt
+                    ? `교체됨 · ${relativeTime(f.replacedAt)}`
+                    : relativeTime(f.createdAt)}
+                </span>
                 <FileActions id={f.id} path={`/s/${f.shareToken}`} />
               </li>
             ))}

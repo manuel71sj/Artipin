@@ -250,7 +250,7 @@
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px 84px auto;
+  grid-template-columns: minmax(0, 1fr) 36px 112px auto;
   align-items: center;
   gap: var(--space-1) var(--space-3);
   min-height: 48px;
@@ -401,6 +401,15 @@
   background: var(--color-destructive);
   color: var(--color-on-destructive);
   font-weight: 600;
+}
+
+/* 교체 확인 문구: 버튼 줄 안에서 줄바꿈되도록 폭을 제한한다 */
+.replaceNote {
+  max-width: 24em;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+  word-break: keep-all;
 }
 
 .copy:disabled,

@@ -1,0 +1,1 @@
+ALTER TABLE `files` ADD `replaced_at` integer;

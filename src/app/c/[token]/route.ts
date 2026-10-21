@@ -30,7 +30,12 @@ export async function GET(
     const mime = imageMime(body);
     if (!mime) return new NextResponse(null, { status: 404 });
     return new NextResponse(new Uint8Array(body), {
-      headers: { "Content-Type": mime, "X-Content-Type-Options": "nosniff" },
+      headers: {
+        "Content-Type": mime,
+        "X-Content-Type-Options": "nosniff",
+        // 본문 교체 직후 이전 본문이 캐시에서 나오지 않도록 매번 재검증한다.
+        "Cache-Control": "no-cache",
+      },
     });
   }
 
@@ -39,6 +44,7 @@ export async function GET(
       "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": `sandbox allow-scripts; connect-src 'none'; form-action 'none'; frame-ancestors ${appOrigin()}`,
       "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-cache",
     },
   });
 }

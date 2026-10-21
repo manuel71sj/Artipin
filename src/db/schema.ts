@@ -39,6 +39,7 @@ export const files = sqliteTable("files", {
   shareToken: text("share_token").notNull().unique(),
   createdAt: integer("created_at").notNull().default(now),
   deletedAt: integer("deleted_at"),
+  replacedAt: integer("replaced_at"),
 });
 
 export const comments = sqliteTable(
