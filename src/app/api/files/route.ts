@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: check.error }, { status: 400 });
 
   const shareToken = randomBytes(16).toString("base64url");
-  const storagePath = await saveFile(data);
+  const storagePath = await saveFile(check.body);
   // 현재 본문 = 최대 no 버전이라는 불변식을 지키려고 files와 no=1 행을 한 트랜잭션에 만든다.
   db.transaction((tx) => {
     const { id } = tx
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         kind: check.kind,
         title: file.name,
         storagePath,
-        size: data.length,
+        size: check.body.length,
         shareToken,
       })
       .returning({ id: files.id })
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         fileId: id,
         no: 1,
         storagePath,
-        size: data.length,
+        size: check.body.length,
         title: file.name,
       })
       .run();

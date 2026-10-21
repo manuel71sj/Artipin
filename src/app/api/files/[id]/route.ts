@@ -100,21 +100,21 @@ export async function PUT(
     );
 
   // 새 파일을 먼저 저장하고 버전 행 추가와 행 갱신을 한 트랜잭션에 묶는다. 갱신 전까지는 이전 본문이 서빙된다.
-  const storagePath = await saveFile(data);
+  const storagePath = await saveFile(check.body);
   db.transaction((tx) => {
     tx.insert(fileVersions)
       .values({
         fileId: Number(id),
         no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${Number(id)})`,
         storagePath,
-        size: data.length,
+        size: check.body.length,
         title: file.name,
       })
       .run();
     tx.update(files)
       .set({
         storagePath,
-        size: data.length,
+        size: check.body.length,
         title: file.name,
         replacedAt: Date.now(),
       })

@@ -114,6 +114,7 @@
   <li><code>default-src</code>를 두지 않는다. 외부 스크립트·이미지·스타일은 허용한다. 좁힐지는 샘플 확인 뒤 결정한다.</li>
   <li>CONTENT_HOST는 <code>/c/*</code>만 응답한다. <code>/s/*</code>, <code>/api/*</code>, 로그인 경로는 404.</li>
   <li>APP_HOST는 업로드 파일 본문을 직접 서빙하지 않는다.</li>
+  <li><code>.md</code>·<code>.json</code>은 업로드(교체 포함) 때 HTML로 변환해 HTML과 같은 경로로 서빙한다. 새니타이즈하지 않는다. 마크다운 속 raw HTML·스크립트도 업로드 HTML과 같은 CSP <code>sandbox</code>·별도 origin에서 실행되어 위협이 같기 때문이다(#31).</li>
   <li>로컬 개발: <code>app.localhost</code>, <code>content.localhost</code> (<code>*.localhost</code>는 로컬로 해석된다).</li>
 </ul>
 
