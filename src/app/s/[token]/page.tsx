@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,11 +11,13 @@ import { contentOrigin } from "@/lib/hosts";
 import { findViewableFile } from "@/lib/shared-file";
 import { pdfPageCount } from "@/lib/storage";
 import { relativeTime } from "@/lib/time";
+import { contentTicket, isUnlocked } from "@/lib/unlock";
 import { readVisitorId } from "@/lib/visitor";
 import { StatusPage, statusStyles } from "../../_components/status-page";
 import { CopyLink } from "./_components/copy-link";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
+import { UnlockForm } from "./_components/unlock-form";
 import { VersionList } from "./_components/version-list";
 import { ViewBeacon } from "./_components/view-beacon";
 
@@ -42,9 +45,27 @@ export default async function SharePage({
       </StatusPage>
     );
   const { file } = found;
+  // 잠금 화면에는 제목·종류·본문 주소를 싣지 않는다.
+  if (!(await isUnlocked(file)))
+    return (
+      <StatusPage title="비밀번호가 필요합니다">
+        <p className={statusStyles.next}>
+          올린 사람에게 받은 비밀번호를 입력하세요.
+        </p>
+        <UnlockForm token={token} />
+      </StatusPage>
+    );
 
   // 본문(이미지·iframe)은 다른 origin(CONTENT_HOST)에서 오므로 연결을 미리 맺는다.
   preconnect(contentOrigin());
+
+  // 비밀번호 파일의 본문 주소는 이 렌더가 발급한 경로 티켓을 거친다(콘텐츠 라우트가 검증).
+  const k = file.passwordHash ? contentTicket(token, file.passwordHash) : null;
+  const prefix = `/c/${token}${k ? `/k/${k}` : ""}`;
+  // 비밀번호를 설정·변경·해제하면 뷰어를 다시 마운트해 새 주소를 쓰게 한다. 해시 원문은 클라이언트로 보내지 않는다.
+  const lockKey = file.passwordHash
+    ? `:${createHash("sha256").update(file.passwordHash).digest("hex").slice(0, 8)}`
+    : "";
 
   const session = await auth();
   const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
@@ -113,6 +134,7 @@ export default async function SharePage({
           token={token}
           contentBase={contentOrigin()}
           kind={file.kind}
+          ticket={k}
           versions={versions.map((v, i) => ({
             no: v.no,
             createdLabel: relativeTime(v.createdAt),
@@ -149,14 +171,14 @@ export default async function SharePage({
           <ViewBeacon token={token} />
           {/* 롤백은 iframe src(/c/{token})를 바꾸지 않으므로 본문이 바뀌면 재마운트해 다시 불러온다 */}
           <HtmlViewer
-            key={file.storagePath}
+            key={file.storagePath + lockKey}
             src={
               file.kind === "site"
-                ? `${contentOrigin()}/c/${token}/index.html`
-                : `${contentOrigin()}/c/${token}`
+                ? `${contentOrigin()}${prefix}/index.html`
+                : `${contentOrigin()}${prefix}`
             }
             entryPath={
-              file.kind === "site" ? `/c/${token}/index.html` : undefined
+              file.kind === "site" ? `${prefix}/index.html` : undefined
             }
             token={token}
             items={items}
@@ -173,9 +195,9 @@ export default async function SharePage({
     file.kind === "pdf"
       ? Array.from(
           { length: await pdfPageCount(file.storagePath) },
-          (_, i) => `${contentOrigin()}/c/${token}?p=${i + 1}${t && `&${t}`}`,
+          (_, i) => `${contentOrigin()}${prefix}?p=${i + 1}${t && `&${t}`}`,
         )
-      : [`${contentOrigin()}/c/${token}${t && `?${t}`}`];
+      : [`${contentOrigin()}${prefix}${t && `?${t}`}`];
 
   return (
     <>
@@ -184,7 +206,7 @@ export default async function SharePage({
         <ViewBeacon token={token} />
         {/* 같은 URL의 이미지는 재사용되므로 교체·롤백 뒤에는 ?t=로 URL을 바꾼다 */}
         <ImageViewer
-          key={file.storagePath}
+          key={file.storagePath + lockKey}
           pages={pages}
           kind={file.kind}
           alt={file.title}

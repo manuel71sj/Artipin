@@ -8,16 +8,18 @@ import { injectBridge } from "@/lib/bridge";
 import { appOrigin } from "@/lib/hosts";
 import { findViewableFile } from "@/lib/shared-file";
 import { readFile } from "@/lib/storage";
+import { verifyContentTicket } from "@/lib/unlock";
 import { imageMime, SITE_TYPES } from "@/lib/upload";
 
 // CONTENT_HOST에서만 도달한다(호스트 분기는 proxy.ts). 업로드 본문을 앱과 다른 origin에서 서빙한다.
 // PDF는 페이지 PNG로 변환돼 있어 ?p={n}(기본 1)으로 n페이지 이미지를 서빙한다. ?v=와 함께 쓰면 그 버전의 페이지다.
 // site(zip)는 /c/{token}/{path}로 디렉터리 안의 파일을 서빙한다. 진입은 index.html이고 ?v=는 받지 않는다.
+// 비밀번호 파일은 모든 경로 앞에 /c/{token}/k/{ticket}/…를 요구하고, 접두사 뒤는 접두사가 없을 때와 같다.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string; path?: string[] }> },
 ) {
-  const { token, path: segs = [] } = await params;
+  const { token, path: all = [] } = await params;
   // ?v={no}가 있으면 그 버전의 본문을 서빙한다. 같은 토큰을 아는 사람에게 열려 있다(위협 모델 문서 참조).
   const v = request.nextUrl.searchParams.get("v");
   if (v !== null && !/^\d+$/.test(v))
@@ -25,6 +27,18 @@ export async function GET(
   const found = await findViewableFile(token);
   if (found.status !== "ok") return new NextResponse(null, { status: 404 });
   const { file } = found;
+  // 비밀번호 파일은 뷰어 렌더가 발급한 경로 티켓이 있어야 한다. 접두사 두 칸을 떼고 나머지를 기존대로 처리한다.
+  let segs = all;
+  let prefix = `/c/${token}`;
+  if (file.passwordHash !== null) {
+    if (
+      all[0] !== "k" ||
+      !verifyContentTicket(token, file.passwordHash, all[1])
+    )
+      return new NextResponse(null, { status: 404 });
+    segs = all.slice(2);
+    prefix += `/k/${all[1]}`;
+  }
   const csp = `sandbox allow-scripts; connect-src 'none'; form-action 'none'; frame-ancestors ${appOrigin()}`;
 
   if (file.kind === "site") {
@@ -34,7 +48,7 @@ export async function GET(
     if (segs.length === 0)
       return new NextResponse(null, {
         status: 302,
-        headers: { Location: `/c/${token}/index.html` },
+        headers: { Location: `${prefix}/index.html` },
       });
     if (
       segs.some((s) => s === "" || s === "." || s === ".." || /[\0/\\]/.test(s))
@@ -66,6 +80,7 @@ export async function GET(
           "X-Content-Type-Options": "nosniff",
           "Cache-Control": "no-cache",
           "Access-Control-Allow-Origin": "*",
+          "Referrer-Policy": "no-referrer",
         },
       },
     );
@@ -104,6 +119,7 @@ export async function GET(
       headers: {
         "Content-Type": mime,
         "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
         // 본문 교체 직후 이전 본문이 캐시에서 나오지 않도록 매번 재검증한다.
         "Cache-Control": "no-cache",
       },
@@ -115,6 +131,7 @@ export async function GET(
       "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": csp,
       "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
       "Cache-Control": "no-cache",
     },
   });

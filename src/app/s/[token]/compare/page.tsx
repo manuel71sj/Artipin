@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import { fileVersions } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
 import { findViewableFile } from "@/lib/shared-file";
+import { contentTicket, isUnlocked } from "@/lib/unlock";
 
 // 두 버전의 본문을 나란히 놓는다. 댓글·핀은 없다. 접근 범위는 /c/{token}?v= 와 같다(토큰 보유자).
 export default async function ComparePage({
@@ -21,7 +22,9 @@ export default async function ComparePage({
   const viewable = await findViewableFile(token);
   if (viewable.status !== "ok") notFound();
   const { file } = viewable;
+  if (!(await isUnlocked(file))) redirect(`/s/${token}`);
   if (file.kind === "site") notFound();
+  const prefix = `/c/${token}${file.passwordHash ? `/k/${contentTicket(token, file.passwordHash)}` : ""}`;
 
   const found = await db
     .select({ no: fileVersions.no })
@@ -48,12 +51,12 @@ export default async function ComparePage({
                 className="html-frame"
                 title={`버전 ${n}`}
                 sandbox="allow-scripts"
-                src={`${contentOrigin()}/c/${token}?v=${n}`}
+                src={`${contentOrigin()}${prefix}?v=${n}`}
               />
             ) : (
               // biome-ignore lint/performance/noImgElement: CONTENT_HOST의 외부 origin 이미지
               <img
-                src={`${contentOrigin()}/c/${token}?v=${n}`}
+                src={`${contentOrigin()}${prefix}?v=${n}`}
                 alt={`버전 ${n}`}
               />
             )}

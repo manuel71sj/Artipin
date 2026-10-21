@@ -6,6 +6,7 @@ import { comments } from "@/db/schema";
 import { type Anchor, isRecord, parseAnchor } from "@/lib/anchor";
 import { loadComments } from "@/lib/comments";
 import { findViewableFile } from "@/lib/shared-file";
+import { isUnlocked } from "@/lib/unlock";
 import { getVisitorId, readVisitorId } from "@/lib/visitor";
 
 const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
@@ -28,6 +29,11 @@ export async function GET(
       { status: 404 },
     );
   const { file } = found;
+  if (!(await isUnlocked(file)))
+    return NextResponse.json(
+      { error: "비밀번호가 필요합니다." },
+      { status: 403 },
+    );
 
   const session = await auth();
   const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
@@ -65,6 +71,11 @@ export async function POST(
       { status: 404 },
     );
   const { file } = found;
+  if (!(await isUnlocked(file)))
+    return NextResponse.json(
+      { error: "비밀번호가 필요합니다." },
+      { status: 403 },
+    );
 
   let json: unknown;
   try {

@@ -71,7 +71,10 @@
 <tr><td>실시간 커서로 다른 방문자의 위치·활동이 업로드 HTML에 노출</td><td>HTML 파일은 부모가 다른 방문자의 커서를 <code>render-pointers</code>로 iframe에 넘긴다(아래 "실시간 커서 노출 정보"). 이름·쿠키 값·이메일·IP는 싣지 않고 파일별 불투명 id만 쓴다</td><td class="warn">업로드 HTML이 (외부 리소스 허용 정책에 따라) 같은 파일을 보는 다른 방문자들의 위치·움직임·활동 시점을 읽어 외부로 보낼 수 있다. 감수</td></tr>
 <tr><td>API 직접 호출로 임의 anchor 저장</td><td>댓글 생성 API가 같은 스키마 검증, 위반은 400</td><td class="ok">없음</td></tr>
 <tr><td>토큰 추측</td><td>128비트 랜덤 토큰, 추측 가능한 id 경로 없음</td><td class="ok">없음</td></tr>
-<tr><td>같은 공유 토큰 보유자가 <code>?v={no}</code>로 이전 버전 본문 열람</td><td>제한 없음 — 버전은 같은 토큰의 일부(이슈 #28 설계)</td><td class="warn">교체한 이전 본문도 링크 보유자에게 보인다. 끊으려면 파일 삭제(모든 버전 본문 삭제)</td></tr>
+<tr><td>같은 공유 토큰 보유자가 <code>?v={no}</code>로 이전 버전 본문 열람</td><td>제한 없음 — 버전은 같은 토큰의 일부(이슈 #28 설계). 비밀번호 파일은 아래 경로 티켓이 필요</td><td class="warn">교체한 이전 본문도 링크 보유자에게 보인다. 끊으려면 파일 삭제(모든 버전 본문 삭제)</td></tr>
+<tr><td>비밀번호 걸린 링크를 토큰만으로 열람(뷰어·compare·<code>/c/*</code> 직접·site 하위 경로·댓글/조회/커서 API)</td><td>APP_HOST는 <code>isUnlocked</code> 하나로 판정(소유자 세션 또는 <code>artipin_unlock_&lt;fileId&gt;</code> 쿠키). CONTENT_HOST는 판정을 통과한 렌더가 발급한 경로 티켓 <code>/c/{token}/k/&lt;exp&gt;.&lt;HMAC(content|token|salt|exp)&gt;/…</code>(10분)이 없거나 틀리거나 만료면 404. 댓글 GET·POST, view POST, pointer GET·POST는 403. 비밀번호를 바꾸면 salt가 바뀌어 쿠키·티켓이 즉시 무효. pointer 구독은 구독 시점의 비밀번호 상태를 저장하고 현재와 같은 구독자에게만 커서를 중계한다</td><td class="warn">시도 횟수 제한 없음(128비트 토큰이 선행 조건). 비밀번호를 설정·변경하면 그 전에 연 커서 구독은 소유자 것도 중계에서 빠진다(뷰어 새로고침으로 회복). 403을 받은 댓글 폴링은 그 요청만 끝나고 타이머는 계속 돈다(viewing은 이전 값 유지)</td></tr>
+<tr><td>티켓 유출(Referer·기록·업로드 HTML 스크립트)</td><td>브라우저 기본 정책(<code>strict-origin-when-cross-origin</code>)도 교차 출처로는 경로를 보내지 않지만, 업로드 HTML이 정책을 넓히는 경우에 대비해 콘텐츠 응답 전부에 <code>Referrer-Policy: no-referrer</code>를 붙인다. 티켓은 10분 뒤 만료된다</td><td class="warn">티켓은 업로드 문서 안에서 실행되는 모든 스크립트(허용된 외부 스크립트 포함)가 <code>location</code>에서 읽을 수 있고, <code>&lt;meta name=referrer&gt;</code>로 정책을 덮을 수도 있다. 티켓은 같은 토큰의 이전 버전(<code>?v=</code>)·다른 페이지(<code>?p=</code>)까지 연다. 렌더 10분 뒤의 새 요청(소유자 <code>[보기]</code> 새 탭, 프레임 단독 새로고침, site 하위 페이지 이동, 렌더 10분 뒤 처음 요청되는 동적 import 청크·늦게 붙는 이미지)은 404이고, 뷰어를 새로고침하면 새 티켓을 받는다. site는 하위 자원이 조용히 깨질 수 있다</td></tr>
+<tr><td>잠금 해제 쿠키 위조·재사용</td><td>httpOnly, APP_HOST 전용(Domain 없음). 값은 <code>&lt;exp&gt;.&lt;HMAC(AUTH_SECRET, unlock|fileId|salt|exp)&gt;</code>이고 <code>timingSafeEqual</code>로 비교한다. 해시는 scrypt + 16바이트 salt</td><td class="ok"><code>AUTH_SECRET</code>을 교체하면 쿠키·티켓·세션이 모두 무효</td></tr>
 <tr><td>업로드 PDF가 서버 poppler 취약점을 노림</td><td>업로드 때 <code>pdftoppm</code>으로 1회만 변환(조회 경로에서는 파서가 돌지 않음), SIGKILL 타임아웃·페이지 상한(<code>-l</code>)·<code>-scale-to</code> 픽셀 상한, 자식 프로세스 env는 PATH만, 컨테이너는 비루트(<code>node</code>)</td><td class="warn">poppler 취약점이 있으면 컨테이너 <code>node</code> 권한으로 <code>/data</code>(DB·업로드)에 닿을 수 있다. 동시 변환 수 제한은 없다</td></tr>
 <tr><td>zip slip(<code>..</code>·절대 경로·드라이브 문자)</td><td>풀기 규칙을 하나라도 어기면 업로드 전체를 거절한다. 서빙 때도 세그먼트(<code>..</code>·<code>.</code>·빈 값·<code>/</code>·<code>\</code>·NUL)를 거절하고 <code>resolve</code> 결과가 사이트 디렉터리 안인지 접두사로 검사한다</td><td class="ok">없음</td></tr>
 <tr><td>zip 안의 심볼릭 링크 항목</td><td>중앙 디렉터리 외부 속성으로 판정해 거절한다(<code>__MACOSX/</code> 등 건너뛸 항목이라도 링크면 거절)</td><td class="ok">없음</td></tr>
@@ -108,10 +111,12 @@
   Content-Type: text/html; charset=utf-8
   Content-Security-Policy: sandbox allow-scripts; connect-src 'none'; form-action 'none'; frame-ancestors &lt;APP_HOST&gt;
   X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
 
 이미지
   Content-Type: image/png | image/jpeg | image/webp   (매직바이트 검증 결과)
   X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
 
 PDF
   페이지 PNG를 이미지와 같은 헤더로 서빙: /c/{share_token}?p={n}  (p 없으면 1, ?v=와 함께 쓰면 그 버전의 페이지)
@@ -124,6 +129,7 @@ PDF
     X-Content-Type-Options: nosniff
     Cache-Control: no-cache
     Access-Control-Allow-Origin: *
+    Referrer-Policy: no-referrer
   브리지는 .html·.htm 응답에만 주입한다.
   경로 탈출(.. 세그먼트, 사이트 디렉터리 밖으로 풀리는 경로)·없는 파일·디렉터리: 404
   진입은 /c/{share_token}/index.html 이고, /c/{share_token} 은 그쪽으로 302 (Location만 있는 본문 없는 응답)
@@ -133,14 +139,27 @@ PDF
   해당 버전 본문. 위 헤더는 그대로.
   없는 버전·숫자가 아닌 v: 404
 
+/c/{share_token}/k/{exp}.{sig}/…   (비밀번호 파일)
+  비밀번호 파일은 모든 경로에 이 접두사가 필요하다. 접두사 뒤는 접두사가 없을 때와 같다(site 하위 경로, ?v=·?p=·?t=).
+  접두사가 없거나 형식이 틀리거나 서명이 불일치하거나 만료면 404. site의 302 Location도 같은 접두사를 쓴다.
+  비밀번호 없는 파일은 접두사를 해석하지 않는다
+
 없는 토큰·삭제된 파일: 404 (두 호스트 모두)</code></pre>
 <ul>
-  <li>site 응답의 <code>Access-Control-Allow-Origin: *</code>는 sandbox(불투명 출처) 문서의 <code>type="module"</code> 스크립트·<code>@font-face</code> 요청이 CORS 모드라 필요하다. 토큰을 알면 이미 본문을 읽을 수 있어 새로 노출되는 것은 없고, 앱 API 접근은 <code>connect-src 'none'</code>을 유지해 막는다.</li>
+  <li>site 응답의 <code>Access-Control-Allow-Origin: *</code>는 sandbox(불투명 출처) 문서의 <code>type="module"</code> 스크립트·<code>@font-face</code> 요청이 CORS 모드라 필요하다. 토큰을 알면(비밀번호 파일은 유효한 티켓이 있으면) 이미 본문을 읽을 수 있어 새로 노출되는 것은 없고, 앱 API 접근은 <code>connect-src 'none'</code>을 유지해 막는다.</li>
   <li><code>default-src</code>를 두지 않는다. 외부 스크립트·이미지·스타일은 허용한다. 좁힐지는 샘플 확인 뒤 결정한다.</li>
   <li>CONTENT_HOST는 <code>/c/*</code>만 응답한다. <code>/s/*</code>, <code>/api/*</code>, 로그인 경로는 404.</li>
   <li>APP_HOST는 업로드 파일 본문을 직접 서빙하지 않는다.</li>
   <li><code>.md</code>·<code>.json</code>은 업로드(교체 포함) 때 HTML로 변환해 HTML과 같은 경로로 서빙한다. 새니타이즈하지 않는다. 마크다운 속 raw HTML·스크립트도 업로드 HTML과 같은 CSP <code>sandbox</code>·별도 origin에서 실행되어 위협이 같기 때문이다(#31).</li>
   <li>로컬 개발: <code>app.localhost</code>, <code>content.localhost</code> (<code>*.localhost</code>는 로컬로 해석된다).</li>
+</ul>
+
+<h3>비밀번호 보호와 경로 티켓 (#34)</h3>
+<ul>
+  <li><strong>흐름:</strong> 잠금 화면(<code>/s/{token}</code>, 제목·종류·본문 주소 없음) → <code>POST /api/s/{token}/unlock</code> → 맞으면 APP_HOST 전용 쿠키 <code>artipin_unlock_&lt;fileId&gt;</code>(7일) → 서버 렌더가 쿠키를 확인한 뒤 경로 티켓을 발급해 본문 주소에 넣음 → 콘텐츠 라우트가 티켓을 검증. 우선순위는 없음/삭제 404 &gt; 만료 화면 &gt; 잠금 화면 &gt; 본문이다.</li>
+  <li><strong>경로 세그먼트를 쓰는 이유:</strong> site의 상대 하위 요청(css·js·이미지·하위 HTML)과 302 Location에는 쿼리가 따라가지 않는다. 접두사 <code>/c/{token}/k/{ticket}/…</code>면 <code>./style.css</code>가 같은 접두사로 풀려 티켓이 저절로 따라간다. 앱 쿠키를 CONTENT_HOST로 보내지 않는 격리가 의도이고, CONTENT_HOST 쿠키는 iframe 안에서 제3자 쿠키라 차단 대상이며, APP_HOST가 본문을 프록시하면 업로드 HTML이 앱 origin에서 실행되므로 채택하지 않았다.</li>
+  <li><strong>브리지 진입 판정:</strong> 브리지가 보내는 <code>location.pathname</code>이 접두사를 포함하므로 site의 <code>entryPath</code>도 <code>/c/{token}/k/{ticket}/index.html</code>이다. 뷰어는 iframe 주소와 <code>entryPath</code>를 마운트 때 고정하고, 비밀번호 상태가 바뀌면 뷰어를 다시 마운트해 새 티켓을 받는다.</li>
+  <li><strong>수명:</strong> 쿠키 7일, 티켓 10분. 비밀번호를 바꾸거나 해제하면 salt가 바뀌거나 검사가 사라져 기존 쿠키·티켓이 즉시 무효가 된다.</li>
 </ul>
 
 <h2>3. 앵커</h2>
@@ -185,7 +204,7 @@ HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; c
 <h3>실시간 커서 노출 정보</h3>
 <ul>
   <li><strong>내보내는 것:</strong> 파일별 불투명 id(pid — 서버가 프로세스 시작 시 만든 무작위 salt, 파일 id, 방문자 쿠키를 SHA-256으로 해시해 12자로 자른 값), 앵커 종류와 위치(HTML: selector·relX·relY / 이미지: x·y / PDF: page·x·y).</li>
-  <li><strong>받는 사람:</strong> 그 파일 링크로 뷰어를 열어 둔 모든 사람(소유자·익명 구분 없음). "지금 보는 중"이 2명 이상인 동안만 연결한다. 자기 커서는 받지 않는다(같은 방문자 쿠키 제외).</li>
+  <li><strong>받는 사람:</strong> 그 파일 링크로 뷰어를 열어 둔 모든 사람(소유자·익명 구분 없음). 비밀번호 파일은 잠금을 푼 사람(또는 소유자)만이고, 구독 시점과 같은 비밀번호 상태인 연결에만 중계한다. "지금 보는 중"이 2명 이상인 동안만 연결한다. 자기 커서는 받지 않는다(같은 방문자 쿠키 제외).</li>
   <li class="warn"><strong>업로드 HTML에 새로 노출되는 것:</strong> HTML 파일이면 부모가 다른 방문자의 커서를 <code>render-pointers</code>로 iframe 안에 넘기므로 업로드 HTML(외부 리소스 포함)도 그 값을 읽고 외부로 보낼 수 있다. 지금까지 업로드 HTML이 읽던 포인터는 자기 방문자 본인의 것뿐이었다. 이 기능으로 <strong>다른 방문자들의 위치·움직임·활동 시점</strong>과 pid가 새로 노출된다. 이미지·PDF는 업로드 파일이 코드를 실행하지 않아 해당 없다.</li>
   <li><strong>내보내지 않는 것:</strong> <code>artipin_visitor</code> 쿠키 값(답글·댓글 삭제 권한의 근거), 이름, 이메일, IP, 소유자 여부. pid는 파일마다·서버 재시작마다 달라 다른 파일과 연결할 수 없다.</li>
   <li><strong>경로:</strong> <code>POST /api/s/{token}/pointer</code>(송신), <code>GET /api/s/{token}/pointer</code>(SSE 수신). 둘 다 APP_HOST 전용이라 CONTENT_HOST의 업로드 HTML은 직접 닿지 않는다. 만료·삭제·없는 토큰은 404.</li>

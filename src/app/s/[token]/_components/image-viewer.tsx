@@ -28,6 +28,8 @@ export function ImageViewer({
   items: CommentItem[];
   isOwner: boolean;
 }) {
+  // 비밀번호 파일은 렌더마다 주소의 티켓이 바뀐다. router.refresh()에 이미지가 다시 로드되지 않도록 마운트 때 고정한다.
+  const [urls] = useState(pages);
   const { items, viewing } = useLiveComments(token, initialItems);
   const { others, move: movePointer } = usePointers(token, viewing);
   const [commentMode, setCommentMode] = useState(false);
@@ -116,7 +118,7 @@ export function ImageViewer({
           </p>
         ) : null}
         <div className="pages">
-          {pages.map((src, i) => {
+          {urls.map((src, i) => {
             const page = i + 1;
             const pinOnPage = (c: CommentItem) => (c.pin?.page ?? 1) === page;
             const pageAlt = kind === "pdf" ? `${alt} ${page}페이지` : alt;

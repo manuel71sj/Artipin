@@ -22,6 +22,10 @@ export default async function Home() {
       createdAt: files.createdAt,
       replacedAt: files.replacedAt,
       expiresAt: files.expiresAt,
+      // 해시 자체는 클라이언트로 내리지 않는다.
+      hasPassword: sql<number>`${files.passwordHash} is not null`.mapWith(
+        Boolean,
+      ),
       open: sql<number>`count(case when ${comments.id} is not null and ${comments.parentId} is null and ${comments.resolvedAt} is null then 1 end)`.mapWith(
         Number,
       ),
@@ -123,7 +127,11 @@ export default async function Home() {
                     ? `교체됨 · ${relativeTime(f.replacedAt)}`
                     : relativeTime(f.createdAt)}
                 </span>
-                <FileActions id={f.id} path={`/s/${f.shareToken}`} />
+                <FileActions
+                  id={f.id}
+                  path={`/s/${f.shareToken}`}
+                  hasPassword={f.hasPassword}
+                />
               </li>
             ))}
           </ul>

@@ -16,12 +16,15 @@ export function VersionList({
   token,
   contentBase,
   kind,
+  ticket,
   versions,
 }: {
   fileId: number;
   token: string;
   contentBase: string;
   kind: string;
+  // 비밀번호 파일이면 CONTENT_HOST 경로 티켓. 없으면 접두사를 붙이지 않는다.
+  ticket: string | null;
   versions: VersionItem[];
 }) {
   const router = useRouter();
@@ -59,7 +62,7 @@ export function VersionList({
                   <>
                     <a
                       className="copy-link"
-                      href={`${contentBase}/c/${token}?v=${v.no}`}
+                      href={`${contentBase}/c/${token}${ticket ? `/k/${ticket}` : ""}?v=${v.no}`}
                       target="_blank"
                       rel="noopener"
                     >

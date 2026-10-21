@@ -112,6 +112,8 @@ export function HtmlViewer({
   // site(zip)의 진입 페이지 경로. 있으면 iframe 안에서 다른 페이지로 이동했을 때 핀을 끈다.
   entryPath?: string;
 }) {
+  // 비밀번호 파일은 렌더마다 주소의 티켓이 바뀐다. router.refresh()에 iframe이 다시 로드되거나 진입 판정이 어긋나지 않도록 마운트 때 고정한다.
+  const [frame] = useState({ src, entryPath });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { items, viewing } = useLiveComments(token, initialItems);
   const { others, move } = usePointers(token, viewing);
@@ -124,9 +126,9 @@ export function HtmlViewer({
   const [path, setPath] = useState<string | null>(null);
   const bridgeReady = path !== null;
   const offEntry =
-    entryPath !== undefined && path !== null && path !== entryPath;
+    frame.entryPath !== undefined && path !== null && path !== frame.entryPath;
   // 핀·커서는 진입 페이지로 확인된 문서에서만 주고받는다(zip 사이트는 경로 재확인 중에도 막는다).
-  const onEntry = entryPath === undefined || path === entryPath;
+  const onEntry = frame.entryPath === undefined || path === frame.entryPath;
   // 리스너가 최신 값을 읽도록 ref에 둔다.
   const onEntryRef = useRef(onEntry);
   onEntryRef.current = onEntry;
@@ -323,7 +325,7 @@ export function HtmlViewer({
               className="html-frame"
               title="업로드된 HTML"
               sandbox="allow-scripts"
-              src={src}
+              src={frame.src}
               onLoad={() => {
                 setLoaded(true);
                 // bridge-ready가 load보다 먼저 올 수 있어 비운 뒤 브리지에 다시 묻는다. 답이 없으면 브리지 없는 페이지다.

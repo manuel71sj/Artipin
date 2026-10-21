@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { isRecord, parseAnchor } from "@/lib/anchor";
 import { findViewableFile } from "@/lib/shared-file";
+import { isUnlocked } from "@/lib/unlock";
 import { getVisitorId } from "@/lib/visitor";
 
 const notFound = () =>
@@ -10,7 +11,12 @@ const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
 
 // 단일 인스턴스 전제: 구독자 집합은 프로세스 메모리다. 다중 인스턴스로 가면 다른 인스턴스의 커서가 보이지 않는다.
 // 키는 파일 id가 아니라 요청 경로의 토큰이라, 링크를 새로 만들면 옛 링크로 열린 연결에는 커서가 가지 않는다.
-type Sub = { visitorId: string; send: (chunk: string) => void };
+// passwordHash는 구독 시점의 비밀번호 상태(비교용, 메모리에만 둔다). 현재와 다르면 중계하지 않는다.
+type Sub = {
+  visitorId: string;
+  passwordHash: string | null;
+  send: (chunk: string) => void;
+};
 const subs = new Map<string, Set<Sub>>();
 
 // 다른 방문자에게 내보내는 id. 방문자 쿠키 값(삭제 권한의 근거)을 그대로 쓰지 않고, 서버 시작마다 달라지는 salt와 파일 id로 해시한다.
@@ -29,6 +35,12 @@ export async function GET(
   const { token } = await params;
   const found = await findViewableFile(token);
   if (found.status !== "ok") return notFound();
+  const { file } = found;
+  if (!(await isUnlocked(file)))
+    return NextResponse.json(
+      { error: "비밀번호가 필요합니다." },
+      { status: 403 },
+    );
   const visitorId = await getVisitorId();
 
   const encoder = new TextEncoder();
@@ -37,6 +49,7 @@ export async function GET(
     start(controller) {
       sub = {
         visitorId,
+        passwordHash: file.passwordHash,
         send: (chunk) => controller.enqueue(encoder.encode(chunk)),
       };
       const set = subs.get(token) ?? new Set<Sub>();
@@ -67,6 +80,11 @@ export async function POST(
   const found = await findViewableFile(token);
   if (found.status !== "ok") return notFound();
   const { file } = found;
+  if (!(await isUnlocked(file)))
+    return NextResponse.json(
+      { error: "비밀번호가 필요합니다." },
+      { status: 403 },
+    );
 
   let json: unknown;
   try {
@@ -88,7 +106,8 @@ export async function POST(
   const visitorId = await getVisitorId();
   const chunk = `data: ${JSON.stringify({ id: pidOf(file.id, visitorId), anchor })}\n\n`;
   for (const s of subs.get(token) ?? []) {
-    if (s.visitorId !== visitorId) s.send(chunk);
+    if (s.visitorId !== visitorId && s.passwordHash === file.passwordHash)
+      s.send(chunk);
   }
   return new Response(null, { status: 204 });
 }

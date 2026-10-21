@@ -14,6 +14,8 @@ type ReplaceState = "idle" | "confirm" | "replacing" | "failed";
 type ReissueState = "idle" | "confirm" | "reissuing" | "failed";
 // 기간 설정은 고르는 즉시 요청한다. 실패 표시는 role="alert" 문구로만 한다.
 type ExpireState = "idle" | "saving" | "failed";
+// 비밀번호 설정·변경은 입력을 받아 저장한다. 해제는 입력 없이 바로 요청한다.
+type PasswordState = "idle" | "editing" | "saving" | "failed";
 
 const COPY_LABEL: Record<CopyState, string> = {
   idle: "링크 복사",
@@ -21,13 +23,23 @@ const COPY_LABEL: Record<CopyState, string> = {
   failed: "복사 실패",
 };
 
-export function FileActions({ id, path }: { id: number; path: string }) {
+export function FileActions({
+  id,
+  path,
+  hasPassword,
+}: {
+  id: number;
+  path: string;
+  hasPassword: boolean;
+}) {
   const router = useRouter();
   const [copy, setCopy] = useState<CopyState>("idle");
   const [del, setDel] = useState<DeleteState>("idle");
   const [replace, setReplace] = useState<ReplaceState>("idle");
   const [reissue, setReissue] = useState<ReissueState>("idle");
   const [expire, setExpire] = useState<ExpireState>("idle");
+  const [pw, setPw] = useState<PasswordState>("idle");
+  const [password, setPassword] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
   // 연속으로 누르면 이전 타이머가 새 표시를 일찍 끄지 않도록 매번 취소한다.
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -105,6 +117,21 @@ export function FileActions({ id, path }: { id: number; path: string }) {
     } else setExpire("failed");
   }
 
+  // value가 null이면 비밀번호를 해제한다.
+  async function savePassword(value: string | null) {
+    setPw("saving");
+    const res = await fetch(`/api/files/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: value }),
+    }).catch(() => null);
+    if (res?.ok) {
+      setPw("idle");
+      setPassword("");
+      router.refresh();
+    } else setPw("failed");
+  }
+
   async function reissueLink() {
     setReissue("reissuing");
     const res = await fetch(`/api/files/${id}/reissue`, {
@@ -118,6 +145,8 @@ export function FileActions({ id, path }: { id: number; path: string }) {
   const confirming = del !== "idle";
   const replacing = replace !== "idle";
   const reissuing = reissue !== "idle";
+  // 해제는 입력 없이 요청하므로(password가 비어 있음) saving·failed여도 입력 칸을 열지 않는다.
+  const editingPw = pw === "editing" || (pw !== "idle" && password !== "");
 
   return (
     <div className={styles.actions}>
@@ -133,7 +162,45 @@ export function FileActions({ id, path }: { id: number; path: string }) {
           유지됩니다.
         </span>
       ) : null}
-      {confirming || replacing || reissuing ? null : (
+      {editingPw ? (
+        <>
+          <span className={styles.replaceNote}>
+            비밀번호는 링크와 따로 전달하세요.
+          </span>
+          <input
+            className={styles.password}
+            type="password"
+            aria-label="비밀번호"
+            autoComplete="new-password"
+            maxLength={100}
+            value={password}
+            disabled={pw === "saving"}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && password !== "") savePassword(password);
+            }}
+          />
+          <button
+            type="button"
+            className={styles.copy}
+            disabled={pw === "saving" || password === ""}
+            onClick={() => savePassword(password)}
+          >
+            {pw === "saving" ? "저장 중…" : "저장"}
+          </button>
+          <button
+            type="button"
+            className={styles.remove}
+            disabled={pw === "saving"}
+            onClick={() => {
+              setPw("idle");
+              setPassword("");
+            }}
+          >
+            취소
+          </button>
+        </>
+      ) : confirming || replacing || reissuing ? null : (
         <>
           <button
             type="button"
@@ -158,9 +225,27 @@ export function FileActions({ id, path }: { id: number; path: string }) {
             <option value="7">7일</option>
             <option value="30">30일</option>
           </select>
+          <button
+            type="button"
+            className={styles.remove}
+            disabled={pw === "saving"}
+            onClick={() => setPw("editing")}
+          >
+            {hasPassword ? "비밀번호 변경" : "비밀번호 설정"}
+          </button>
+          {hasPassword ? (
+            <button
+              type="button"
+              className={styles.remove}
+              disabled={pw === "saving"}
+              onClick={() => savePassword(null)}
+            >
+              비밀번호 해제
+            </button>
+          ) : null}
         </>
       )}
-      {confirming || replacing ? null : (
+      {confirming || replacing || editingPw ? null : (
         <button
           ref={reissueRef}
           type="button"
@@ -190,7 +275,7 @@ export function FileActions({ id, path }: { id: number; path: string }) {
           취소
         </button>
       ) : null}
-      {confirming || reissuing ? null : (
+      {confirming || reissuing || editingPw ? null : (
         <>
           <input
             ref={inputRef}
@@ -221,7 +306,7 @@ export function FileActions({ id, path }: { id: number; path: string }) {
           </button>
         </>
       )}
-      {reissuing ? null : replacing ? (
+      {reissuing || editingPw ? null : replacing ? (
         <button
           type="button"
           className={styles.remove}
@@ -272,6 +357,11 @@ export function FileActions({ id, path }: { id: number; path: string }) {
       {expire === "failed" ? (
         <span role="alert" className="sr-only">
           기간을 설정하지 못했습니다
+        </span>
+      ) : null}
+      {pw === "failed" ? (
+        <span role="alert" className="sr-only">
+          비밀번호를 저장하지 못했습니다
         </span>
       ) : null}
       {reissue === "failed" ? (

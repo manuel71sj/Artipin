@@ -42,6 +42,8 @@ export const files = sqliteTable("files", {
   replacedAt: integer("replaced_at"),
   // 공개 링크 만료 시각(ms). null이면 만료 없음.
   expiresAt: integer("expires_at"),
+  // 링크 비밀번호. scrypt 결과를 "salt:hash"(hex)로 저장한다. null이면 비밀번호 없음.
+  passwordHash: text("password_hash"),
 });
 
 export const fileVersions = sqliteTable(

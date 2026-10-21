@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { views } from "@/db/schema";
 import { findViewableFile } from "@/lib/shared-file";
+import { isUnlocked } from "@/lib/unlock";
 import { getVisitorId } from "@/lib/visitor";
 
 // 뷰어가 로드되면 클라이언트가 1회 호출한다. 파일 소유자 세션의 조회는 기록하지 않는다.
@@ -19,6 +20,11 @@ export async function POST(
     );
 
   const { file } = found;
+  if (!(await isUnlocked(file)))
+    return NextResponse.json(
+      { error: "비밀번호가 필요합니다." },
+      { status: 403 },
+    );
   // 소유자도 방문자 쿠키는 받는다(접속자 수는 이 쿠키로 센다). 조회 기록만 남기지 않는다.
   const visitorId = await getVisitorId();
   const session = await auth();
