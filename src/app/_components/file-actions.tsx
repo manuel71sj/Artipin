@@ -10,6 +10,11 @@ type DeleteState = "idle" | "confirm" | "deleting" | "failed";
 // 교체는 핀 위치를 어긋나게 할 수 있으므로 파일을 고른 뒤 한 번 더 확인한다. 이전 본문은 버전으로 남는다.
 type ReplaceState = "idle" | "confirm" | "replacing" | "failed";
 
+// 링크 새로 만들기는 이전 링크를 즉시 닫으므로 한 번 더 확인한다.
+type ReissueState = "idle" | "confirm" | "reissuing" | "failed";
+// 기간 설정은 고르는 즉시 요청한다. 실패 표시는 role="alert" 문구로만 한다.
+type ExpireState = "idle" | "saving" | "failed";
+
 const COPY_LABEL: Record<CopyState, string> = {
   idle: "링크 복사",
   copied: "복사했습니다",
@@ -21,11 +26,14 @@ export function FileActions({ id, path }: { id: number; path: string }) {
   const [copy, setCopy] = useState<CopyState>("idle");
   const [del, setDel] = useState<DeleteState>("idle");
   const [replace, setReplace] = useState<ReplaceState>("idle");
+  const [reissue, setReissue] = useState<ReissueState>("idle");
+  const [expire, setExpire] = useState<ExpireState>("idle");
   const [newFile, setNewFile] = useState<File | null>(null);
   // 연속으로 누르면 이전 타이머가 새 표시를 일찍 끄지 않도록 매번 취소한다.
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const removeRef = useRef<HTMLButtonElement>(null);
   const replaceRef = useRef<HTMLButtonElement>(null);
+  const reissueRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => () => clearTimeout(timer.current), []);
   // 요청 중 비활성화로 잃은 포커스를 실패 시 돌려준다.
@@ -35,6 +43,14 @@ export function FileActions({ id, path }: { id: number; path: string }) {
   useEffect(() => {
     if (replace === "failed") replaceRef.current?.focus();
   }, [replace]);
+  useEffect(() => {
+    if (reissue === "failed") reissueRef.current?.focus();
+  }, [reissue]);
+  // 재발급 뒤 목록 갱신으로 path가 새 토큰이 되면 처리 중 상태를 끝낸다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: path가 바뀔 때만 실행한다
+  useEffect(() => {
+    setReissue((r) => (r === "reissuing" ? "idle" : r));
+  }, [path]);
 
   async function copyLink() {
     let next: CopyState = "copied";
@@ -72,8 +88,36 @@ export function FileActions({ id, path }: { id: number; path: string }) {
     } else setReplace("failed");
   }
 
+  // days가 ""이면 안내 항목이라 요청하지 않는다. "none"은 만료 없음이다.
+  async function setPeriod(days: string) {
+    if (days === "") return;
+    setExpire("saving");
+    const res = await fetch(`/api/files/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expiresInDays: days === "none" ? null : Number(days),
+      }),
+    }).catch(() => null);
+    if (res?.ok) {
+      setExpire("idle");
+      router.refresh();
+    } else setExpire("failed");
+  }
+
+  async function reissueLink() {
+    setReissue("reissuing");
+    const res = await fetch(`/api/files/${id}/reissue`, {
+      method: "POST",
+    }).catch(() => null);
+    // 성공해도 목록이 새 토큰으로 갱신될 때까지(아래 effect) 처리 중으로 두어, 복사 버튼이 이전 링크를 복사하지 않게 한다.
+    if (res?.ok) router.refresh();
+    else setReissue("failed");
+  }
+
   const confirming = del !== "idle";
   const replacing = replace !== "idle";
+  const reissuing = reissue !== "idle";
 
   return (
     <div className={styles.actions}>
@@ -83,18 +127,70 @@ export function FileActions({ id, path }: { id: number; path: string }) {
           유지되며, 위치가 맞지 않는 핀은 목록에만 표시됩니다.
         </span>
       ) : null}
+      {reissuing ? (
+        <span className={styles.replaceNote}>
+          이전 링크로는 더 이상 열 수 없습니다. 댓글과 조회 기록은 그대로
+          유지됩니다.
+        </span>
+      ) : null}
+      {confirming || replacing || reissuing ? null : (
+        <>
+          <button
+            type="button"
+            className={styles.copy}
+            data-state={copy}
+            aria-live="polite"
+            onClick={copyLink}
+          >
+            {COPY_LABEL[copy]}
+          </button>
+          {/* 현재 값을 역산해 보여주지 않는 동작 전용 컨트롤이다. 요청이 끝나면 안내 항목으로 돌아간다. */}
+          <select
+            className={styles.period}
+            aria-label="링크 공개 기간"
+            value=""
+            disabled={expire === "saving"}
+            onChange={(e) => setPeriod(e.target.value)}
+          >
+            <option value="">만료 설정…</option>
+            <option value="none">만료 없음</option>
+            <option value="1">1일</option>
+            <option value="7">7일</option>
+            <option value="30">30일</option>
+          </select>
+        </>
+      )}
       {confirming || replacing ? null : (
         <button
+          ref={reissueRef}
           type="button"
-          className={styles.copy}
-          data-state={copy}
-          aria-live="polite"
-          onClick={copyLink}
+          className={reissuing ? styles.confirm : styles.remove}
+          disabled={reissue === "reissuing"}
+          onClick={() => (reissuing ? reissueLink() : setReissue("confirm"))}
         >
-          {COPY_LABEL[copy]}
+          {reissue === "reissuing"
+            ? "만드는 중…"
+            : reissue === "failed"
+              ? "다시 시도"
+              : reissuing
+                ? "새 링크 만들기"
+                : "링크 새로 만들기"}
         </button>
       )}
-      {confirming ? null : (
+      {reissuing ? (
+        <button
+          type="button"
+          className={styles.remove}
+          disabled={reissue === "reissuing"}
+          onClick={() => {
+            setReissue("idle");
+            reissueRef.current?.focus();
+          }}
+        >
+          취소
+        </button>
+      ) : null}
+      {confirming || reissuing ? null : (
         <>
           <input
             ref={inputRef}
@@ -125,7 +221,7 @@ export function FileActions({ id, path }: { id: number; path: string }) {
           </button>
         </>
       )}
-      {replacing ? (
+      {reissuing ? null : replacing ? (
         <button
           type="button"
           className={styles.remove}
@@ -171,6 +267,16 @@ export function FileActions({ id, path }: { id: number; path: string }) {
       {del === "failed" ? (
         <span role="alert" className="sr-only">
           삭제하지 못했습니다
+        </span>
+      ) : null}
+      {expire === "failed" ? (
+        <span role="alert" className="sr-only">
+          기간을 설정하지 못했습니다
+        </span>
+      ) : null}
+      {reissue === "failed" ? (
+        <span role="alert" className="sr-only">
+          링크를 새로 만들지 못했습니다
         </span>
       ) : null}
       {replace === "failed" ? (

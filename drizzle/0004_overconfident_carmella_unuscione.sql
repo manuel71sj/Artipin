@@ -1,0 +1,1 @@
+ALTER TABLE `files` ADD `expires_at` integer;

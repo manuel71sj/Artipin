@@ -1,8 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { files, fileVersions } from "@/db/schema";
+import { fileVersions } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
+import { findViewableFile } from "@/lib/shared-file";
 
 // 두 버전의 본문을 나란히 놓는다. 댓글·핀은 없다. 접근 범위는 /c/{token}?v= 와 같다(토큰 보유자).
 export default async function ComparePage({
@@ -17,11 +18,9 @@ export default async function ComparePage({
   if (typeof a !== "string" || typeof b !== "string") notFound();
   if (!/^\d+$/.test(a) || !/^\d+$/.test(b)) notFound();
 
-  const [file] = await db
-    .select({ kind: files.kind, title: files.title, id: files.id })
-    .from(files)
-    .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
-  if (!file) notFound();
+  const viewable = await findViewableFile(token);
+  if (viewable.status !== "ok") notFound();
+  const { file } = viewable;
 
   const found = await db
     .select({ no: fileVersions.no })

@@ -126,3 +126,43 @@ export async function PUT(
   });
   return new NextResponse(null, { status: 204 });
 }
+
+// 공개 링크 만료 시각을 정한다. 프리셋(1·7·30일)만 받고 null이면 만료를 없앤다.
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  if (!session)
+    return NextResponse.json(
+      { error: "로그인이 필요합니다." },
+      { status: 401 },
+    );
+
+  const body = await request.json().catch(() => null);
+  const days = body?.expiresInDays;
+  if (days !== null && days !== 1 && days !== 7 && days !== 30)
+    return NextResponse.json(
+      { error: "expiresInDays는 1, 7, 30 또는 null이어야 합니다." },
+      { status: 400 },
+    );
+
+  const { id } = await params;
+  const [updated] = await db
+    .update(files)
+    .set({ expiresAt: days === null ? null : Date.now() + days * 86_400_000 })
+    .where(
+      and(
+        eq(files.id, Number(id)),
+        eq(files.ownerId, Number(session.user.id)),
+        isNull(files.deletedAt),
+      ),
+    )
+    .returning({ id: files.id });
+  if (!updated)
+    return NextResponse.json(
+      { error: "파일을 찾을 수 없습니다." },
+      { status: 404 },
+    );
+  return new NextResponse(null, { status: 204 });
+}

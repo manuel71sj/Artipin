@@ -1,10 +1,11 @@
 import { join } from "node:path";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { files, fileVersions } from "@/db/schema";
+import { fileVersions } from "@/db/schema";
 import { injectBridge } from "@/lib/bridge";
 import { appOrigin } from "@/lib/hosts";
+import { findViewableFile } from "@/lib/shared-file";
 import { readFile } from "@/lib/storage";
 import { imageMime } from "@/lib/upload";
 
@@ -19,25 +20,21 @@ export async function GET(
   const v = request.nextUrl.searchParams.get("v");
   if (v !== null && !/^\d+$/.test(v))
     return new NextResponse(null, { status: 404 });
-  const [file] = v
-    ? await db
-        .select({ kind: files.kind, storagePath: fileVersions.storagePath })
-        .from(files)
-        .innerJoin(fileVersions, eq(fileVersions.fileId, files.id))
-        .where(
-          and(
-            eq(files.shareToken, token),
-            isNull(files.deletedAt),
-            eq(fileVersions.no, Number(v)),
-          ),
-        )
-    : await db
-        .select({ kind: files.kind, storagePath: files.storagePath })
-        .from(files)
-        .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
-  if (!file) return new NextResponse(null, { status: 404 });
+  const found = await findViewableFile(token);
+  if (found.status !== "ok") return new NextResponse(null, { status: 404 });
+  const { file } = found;
 
   let path = file.storagePath;
+  if (v) {
+    const [version] = await db
+      .select({ storagePath: fileVersions.storagePath })
+      .from(fileVersions)
+      .where(
+        and(eq(fileVersions.fileId, file.id), eq(fileVersions.no, Number(v))),
+      );
+    if (!version) return new NextResponse(null, { status: 404 });
+    path = version.storagePath;
+  }
   if (file.kind === "pdf") {
     const p = request.nextUrl.searchParams.get("p") ?? "1";
     if (!/^\d+$/.test(p)) return new NextResponse(null, { status: 404 });

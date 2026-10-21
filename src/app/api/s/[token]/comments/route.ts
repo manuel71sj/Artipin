@@ -2,7 +2,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { comments, files } from "@/db/schema";
+import { comments } from "@/db/schema";
+import { findViewableFile } from "@/lib/shared-file";
 import { PDF_MAX_PAGES } from "@/lib/upload";
 import { getVisitorId } from "@/lib/visitor";
 
@@ -85,15 +86,13 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const [file] = await db
-    .select({ id: files.id, kind: files.kind, ownerId: files.ownerId })
-    .from(files)
-    .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
-  if (!file)
+  const found = await findViewableFile(token);
+  if (found.status !== "ok")
     return NextResponse.json(
       { error: "파일을 찾을 수 없습니다." },
       { status: 404 },
     );
+  const { file } = found;
 
   let json: unknown;
   try {

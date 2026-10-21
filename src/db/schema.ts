@@ -40,6 +40,8 @@ export const files = sqliteTable("files", {
   createdAt: integer("created_at").notNull().default(now),
   deletedAt: integer("deleted_at"),
   replacedAt: integer("replaced_at"),
+  // 공개 링크 만료 시각(ms). null이면 만료 없음.
+  expiresAt: integer("expires_at"),
 });
 
 export const fileVersions = sqliteTable(

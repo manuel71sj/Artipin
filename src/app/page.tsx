@@ -21,6 +21,7 @@ export default async function Home() {
       shareToken: files.shareToken,
       createdAt: files.createdAt,
       replacedAt: files.replacedAt,
+      expiresAt: files.expiresAt,
       open: sql<number>`count(case when ${comments.id} is not null and ${comments.parentId} is null and ${comments.resolvedAt} is null then 1 end)`.mapWith(
         Number,
       ),
@@ -85,6 +86,21 @@ export default async function Home() {
                   <span className={styles.kind}>
                     {{ image: "이미지", html: "HTML", pdf: "PDF" }[f.kind]}
                   </span>
+                  {f.expiresAt !== null &&
+                    (f.expiresAt <= Date.now() ? (
+                      <span className={styles.expiry} data-expired>
+                        만료됨
+                      </span>
+                    ) : (
+                      <span className={styles.expiry}>
+                        {new Date(f.expiresAt).toLocaleDateString("ko-KR", {
+                          timeZone: "Asia/Seoul",
+                          month: "long",
+                          day: "numeric",
+                        })}{" "}
+                        만료
+                      </span>
+                    ))}
                 </span>
                 <span className={styles.pinCell}>
                   {f.open > 0 && (

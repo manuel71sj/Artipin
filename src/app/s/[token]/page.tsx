@@ -1,13 +1,16 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { preconnect } from "react-dom";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { comments, files, fileVersions, views } from "@/db/schema";
+import { comments, fileVersions, views } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
+import { findViewableFile } from "@/lib/shared-file";
 import { pdfPageCount } from "@/lib/storage";
 import { relativeTime } from "@/lib/time";
 import { readVisitorId } from "@/lib/visitor";
+import { StatusPage, statusStyles } from "../../_components/status-page";
 import type { CommentItem } from "./_components/comment-panel";
 import { CopyLink } from "./_components/copy-link";
 import { HtmlViewer } from "./_components/html-viewer";
@@ -21,11 +24,24 @@ export default async function SharePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const [file] = await db
-    .select()
-    .from(files)
-    .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
-  if (!file) notFound();
+  const found = await findViewableFile(token);
+  if (found.status === "none") notFound();
+  // 만료는 404와 구분해 안내한다(HTTP 200). 소유자도 예외 없이 이 화면을 본다.
+  if (found.status === "expired")
+    return (
+      <StatusPage title="링크가 만료되었습니다">
+        <p className={statusStyles.next}>
+          올린 사람이 정한 공개 기간이 지났습니다. 계속 필요하면 올린 사람에게
+          기간을 다시 설정해 달라고 요청하세요.
+        </p>
+        <div className={statusStyles.actions}>
+          <Link className={statusStyles.link} href="/">
+            내 파일로 이동
+          </Link>
+        </div>
+      </StatusPage>
+    );
+  const { file } = found;
 
   // 본문(이미지·iframe)은 다른 origin(CONTENT_HOST)에서 오므로 연결을 미리 맺는다.
   preconnect(contentOrigin());
