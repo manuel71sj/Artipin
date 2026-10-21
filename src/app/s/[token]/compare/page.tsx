@@ -21,6 +21,7 @@ export default async function ComparePage({
   const viewable = await findViewableFile(token);
   if (viewable.status !== "ok") notFound();
   const { file } = viewable;
+  if (file.kind === "site") notFound();
 
   const found = await db
     .select({ no: fileVersions.no })

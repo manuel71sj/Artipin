@@ -320,7 +320,9 @@ const BRIDGE = `(function () {
     if (e.source !== parent) return;
     var d = e.data;
     if (!d || typeof d !== "object") return;
-    if (d.type === "mode") {
+    if (d.type === "hello") {
+      announce();
+    } else if (d.type === "mode") {
       if (d.mode === "browse" || d.mode === "comment") mode = d.mode;
       if (mode !== "comment") {
         pickedSel = null;
@@ -389,7 +391,10 @@ const BRIDGE = `(function () {
   });
   window.addEventListener("resize", draw);
   window.addEventListener("load", draw);
-  parent.postMessage({ type: "bridge-ready" }, "*");
+  function announce() {
+    parent.postMessage({ type: "bridge-ready", path: location.pathname }, "*");
+  }
+  announce();
 })();`;
 
 const BRIDGE_TAG = `<script>${BRIDGE}</script>`;

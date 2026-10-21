@@ -23,7 +23,7 @@ const isRel = (v: unknown): v is number =>
 function parseMessage(
   data: unknown,
 ):
-  | { type: "bridge-ready" }
+  | { type: "bridge-ready"; path: string }
   | { type: "anchor-picked"; anchor: HtmlPin; x: number; y: number }
   | { type: "pin-click"; id: number; x: number; y: number }
   | { type: "pin-close" }
@@ -31,7 +31,12 @@ function parseMessage(
   | null {
   if (typeof data !== "object" || data === null) return null;
   const d = data as Record<string, unknown>;
-  if (d.type === "bridge-ready") return { type: "bridge-ready" };
+  if (
+    d.type === "bridge-ready" &&
+    typeof d.path === "string" &&
+    d.path.length <= 2000
+  )
+    return { type: "bridge-ready", path: d.path };
   if (d.type === "pin-close") return { type: "pin-close" };
   if (
     d.type === "pointer" &&
@@ -98,11 +103,14 @@ export function HtmlViewer({
   token,
   items: initialItems,
   isOwner,
+  entryPath,
 }: {
   src: string;
   token: string;
   items: CommentItem[];
   isOwner: boolean;
+  // site(zip)의 진입 페이지 경로. 있으면 iframe 안에서 다른 페이지로 이동했을 때 핀을 끈다.
+  entryPath?: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { items, viewing } = useLiveComments(token, initialItems);
@@ -112,7 +120,16 @@ export function HtmlViewer({
   moveRef.current = move;
   const [listening, setListening] = useState(false);
   const [readySeq, setReadySeq] = useState(0);
-  const bridgeReady = readySeq > 0;
+  // 브리지가 알린 iframe 문서의 경로. 문서가 로드될 때마다 비우고 다시 받는다.
+  const [path, setPath] = useState<string | null>(null);
+  const bridgeReady = path !== null;
+  const offEntry =
+    entryPath !== undefined && path !== null && path !== entryPath;
+  // 핀·커서는 진입 페이지로 확인된 문서에서만 주고받는다(zip 사이트는 경로 재확인 중에도 막는다).
+  const onEntry = entryPath === undefined || path === entryPath;
+  // 리스너가 최신 값을 읽도록 ref에 둔다.
+  const onEntryRef = useRef(onEntry);
+  onEntryRef.current = onEntry;
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [commentMode, setCommentMode] = useState(false);
@@ -159,12 +176,14 @@ export function HtmlViewer({
       if (e.source !== iframeRef.current?.contentWindow) return;
       const msg = parseMessage(e.data);
       if (!msg) return;
-      if (msg.type === "bridge-ready") setReadySeq((n) => n + 1);
-      else if (msg.type === "pin-close") {
+      if (msg.type === "bridge-ready") {
+        setPath(msg.path);
+        setReadySeq((n) => n + 1);
+      } else if (msg.type === "pin-close") {
         setOpen(null);
         setPending(null);
       } else if (msg.type === "pointer") {
-        moveRef.current(msg.anchor);
+        if (onEntryRef.current) moveRef.current(msg.anchor);
       } else if (msg.type === "pin-click") {
         setPending(null);
         setOpen({
@@ -189,10 +208,18 @@ export function HtmlViewer({
   }, []);
 
   useEffect(() => {
-    if (!loaded || readySeq > 0) return;
+    if (!loaded || path !== null) return;
     const t = setTimeout(() => setTimedOut(true), BRIDGE_TIMEOUT_MS);
     return () => clearTimeout(t);
-  }, [loaded, readySeq]);
+  }, [loaded, path]);
+
+  // 진입 페이지로 확인되지 않은 문서(하위 페이지·경로 재확인 중·브리지 없는 문서)에서는 작성창과 댓글 모드를 닫는다.
+  useEffect(() => {
+    if (onEntry) return;
+    setCommentMode(false);
+    setPending(null);
+    setOpen(null);
+  }, [onEntry]);
 
   useEffect(() => {
     if (readySeq > 0)
@@ -203,15 +230,15 @@ export function HtmlViewer({
   }, [readySeq, commentMode]);
 
   useEffect(() => {
-    if (readySeq > 0)
+    if (readySeq > 0 && onEntry)
       iframeRef.current?.contentWindow?.postMessage(
         { type: "render-pins", pins },
         "*",
       );
-  }, [readySeq, pins]);
+  }, [readySeq, pins, onEntry]);
 
   useEffect(() => {
-    if (readySeq > 0)
+    if (readySeq > 0 && onEntry)
       iframeRef.current?.contentWindow?.postMessage(
         {
           type: "render-pointers",
@@ -230,7 +257,7 @@ export function HtmlViewer({
         },
         "*",
       );
-  }, [readySeq, others]);
+  }, [readySeq, others, onEntry]);
 
   useEffect(() => {
     if (readySeq > 0)
@@ -258,7 +285,7 @@ export function HtmlViewer({
         <div className="viewer-tools">
           <ModeToggle
             commentMode={commentMode}
-            disabled={!bridgeReady}
+            disabled={!bridgeReady || offEntry}
             onChange={setMode}
           />
           <div className="mode-toggle">
@@ -277,6 +304,9 @@ export function HtmlViewer({
         {commentMode ? (
           <p className="viewer-note">화면의 원하는 위치를 클릭하세요.</p>
         ) : null}
+        {offEntry ? (
+          <p className="viewer-note">이 페이지는 핀 댓글 미지원</p>
+        ) : null}
         {timedOut && !bridgeReady ? (
           <p className="viewer-note">
             이 파일은 핀 댓글을 지원하지 않을 수 있습니다.
@@ -294,7 +324,15 @@ export function HtmlViewer({
               title="업로드된 HTML"
               sandbox="allow-scripts"
               src={src}
-              onLoad={() => setLoaded(true)}
+              onLoad={() => {
+                setLoaded(true);
+                // bridge-ready가 load보다 먼저 올 수 있어 비운 뒤 브리지에 다시 묻는다. 답이 없으면 브리지 없는 페이지다.
+                setPath(null);
+                iframeRef.current?.contentWindow?.postMessage(
+                  { type: "hello" },
+                  "*",
+                );
+              }}
             />
           ) : null}
           {opened && open ? (

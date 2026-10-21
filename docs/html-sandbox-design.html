@@ -53,7 +53,7 @@
 
 <div class="card">
   <strong>핵심 규칙 세 가지.</strong><br>
-  1) 업로드 HTML은 <code>CONTENT_HOST</code>에서만 서빙하고 iframe은 <code>sandbox="allow-scripts"</code>만 준다 (<code>allow-same-origin</code> 금지).<br>
+  1) 업로드 HTML은 <code>CONTENT_HOST</code>에서만 서빙하고(zip 사이트는 <code>/c/{token}/{path}</code>로 디렉터리 안 파일을 서빙한다) iframe은 <code>sandbox="allow-scripts"</code>만 준다 (<code>allow-same-origin</code> 금지).<br>
   2) 부모와 iframe 사이 <code>postMessage</code> 채널은 하나뿐이고, 받는 쪽은 항상 출처(<code>event.source</code>)와 내용(스키마)을 둘 다 검사한다. 브리지가 보내는 <code>pointer</code>는 부모가 검사·빈도 제한한 뒤에만 서버로 보낸다.<br>
   3) 앵커 값은 어디서 오든 신뢰하지 않는다. 브라우저 쪽과 API 쪽에서 같은 스키마로 검증하고, 값은 텍스트로만 렌더한다.
 </div>
@@ -73,6 +73,10 @@
 <tr><td>토큰 추측</td><td>128비트 랜덤 토큰, 추측 가능한 id 경로 없음</td><td class="ok">없음</td></tr>
 <tr><td>같은 공유 토큰 보유자가 <code>?v={no}</code>로 이전 버전 본문 열람</td><td>제한 없음 — 버전은 같은 토큰의 일부(이슈 #28 설계)</td><td class="warn">교체한 이전 본문도 링크 보유자에게 보인다. 끊으려면 파일 삭제(모든 버전 본문 삭제)</td></tr>
 <tr><td>업로드 PDF가 서버 poppler 취약점을 노림</td><td>업로드 때 <code>pdftoppm</code>으로 1회만 변환(조회 경로에서는 파서가 돌지 않음), SIGKILL 타임아웃·페이지 상한(<code>-l</code>)·<code>-scale-to</code> 픽셀 상한, 자식 프로세스 env는 PATH만, 컨테이너는 비루트(<code>node</code>)</td><td class="warn">poppler 취약점이 있으면 컨테이너 <code>node</code> 권한으로 <code>/data</code>(DB·업로드)에 닿을 수 있다. 동시 변환 수 제한은 없다</td></tr>
+<tr><td>zip slip(<code>..</code>·절대 경로·드라이브 문자)</td><td>풀기 규칙을 하나라도 어기면 업로드 전체를 거절한다. 서빙 때도 세그먼트(<code>..</code>·<code>.</code>·빈 값·<code>/</code>·<code>\</code>·NUL)를 거절하고 <code>resolve</code> 결과가 사이트 디렉터리 안인지 접두사로 검사한다</td><td class="ok">없음</td></tr>
+<tr><td>zip 안의 심볼릭 링크 항목</td><td>중앙 디렉터리 외부 속성으로 판정해 거절한다(<code>__MACOSX/</code> 등 건너뛸 항목이라도 링크면 거절)</td><td class="ok">없음</td></tr>
+<tr><td>압축 폭탄</td><td>실제 해제 바이트와 항목 수를 풀면서 세어 20MB·300개에서 멈추고 임시 디렉터리를 지운다. 헤더의 선언 크기는 믿지 않는다</td><td class="warn">동시 업로드 수 제한은 없다(PDF 행과 같은 수준). 원본 zip 20MB는 메모리에 올라간다</td></tr>
+<tr><td>하위 HTML·SVG 안의 스크립트</td><td>본문을 서빙하는 site 응답 전부에 CSP <code>sandbox</code>·<code>nosniff</code>를 붙이고, 확장자 표 밖 파일은 업로드 거절·서빙 404</td><td class="ok">없음(앱 데이터 기준)</td></tr>
 <tr><td>앱 화면을 다른 사이트가 프레임으로 삽입</td><td>APP_HOST 응답에 <code>frame-ancestors 'none'</code></td><td class="ok">없음</td></tr>
 <tr><td>MIME 스니핑·인코딩 혼동</td><td><code>nosniff</code>, Content-Type 고정(HTML은 UTF-8만 업로드 허용), 이미지는 매직바이트 판정값</td><td class="ok">없음</td></tr>
 </table></div>
@@ -113,12 +117,25 @@ PDF
   페이지 PNG를 이미지와 같은 헤더로 서빙: /c/{share_token}?p={n}  (p 없으면 1, ?v=와 함께 쓰면 그 버전의 페이지)
   없는 페이지·숫자가 아닌 p: 404
 
+/c/{share_token}/{path}   (zip 사이트, kind=site)
+  Content-Type: 확장자 표(html·htm·css·js·mjs·json·png·jpg·jpeg·gif·webp·svg·ico·woff·woff2·ttf·otf). 표 밖 확장자는 404
+  본문을 서빙하는 응답 전부(하위 HTML·SVG 포함):
+    Content-Security-Policy: sandbox allow-scripts; connect-src 'none'; form-action 'none'; frame-ancestors &lt;APP_HOST&gt;
+    X-Content-Type-Options: nosniff
+    Cache-Control: no-cache
+    Access-Control-Allow-Origin: *
+  브리지는 .html·.htm 응답에만 주입한다.
+  경로 탈출(.. 세그먼트, 사이트 디렉터리 밖으로 풀리는 경로)·없는 파일·디렉터리: 404
+  진입은 /c/{share_token}/index.html 이고, /c/{share_token} 은 그쪽으로 302 (Location만 있는 본문 없는 응답)
+  만료·삭제된 토큰은 하위 경로까지 404. site의 ?v=는 받지 않는다(404)
+
 /c/{share_token}?v={no}
   해당 버전 본문. 위 헤더는 그대로.
   없는 버전·숫자가 아닌 v: 404
 
 없는 토큰·삭제된 파일: 404 (두 호스트 모두)</code></pre>
 <ul>
+  <li>site 응답의 <code>Access-Control-Allow-Origin: *</code>는 sandbox(불투명 출처) 문서의 <code>type="module"</code> 스크립트·<code>@font-face</code> 요청이 CORS 모드라 필요하다. 토큰을 알면 이미 본문을 읽을 수 있어 새로 노출되는 것은 없고, 앱 API 접근은 <code>connect-src 'none'</code>을 유지해 막는다.</li>
   <li><code>default-src</code>를 두지 않는다. 외부 스크립트·이미지·스타일은 허용한다. 좁힐지는 샘플 확인 뒤 결정한다.</li>
   <li>CONTENT_HOST는 <code>/c/*</code>만 응답한다. <code>/s/*</code>, <code>/api/*</code>, 로그인 경로는 404.</li>
   <li>APP_HOST는 업로드 파일 본문을 직접 서빙하지 않는다.</li>
@@ -150,6 +167,8 @@ HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; c
 <h2>4. postMessage 프로토콜</h2>
 <div class="scroll"><table>
 <tr><th>방향</th><th>type</th><th>payload</th><th>수신측 검사</th></tr>
+<tr><td>브리지 → 부모</td><td><code>bridge-ready</code></td><td><code>{ path }</code> (iframe 문서의 <code>location.pathname</code>). 로드 후 부모가 <code>hello</code>를 보내면 다시 보낸다</td><td>부모: <code>event.source === iframe.contentWindow</code>, path는 문자열·2000자 이하. zip 사이트에서 진입 페이지(<code>/c/{token}/index.html</code>)가 아니면 핀을 끈다</td></tr>
+<tr><td>부모 → 브리지</td><td><code>hello</code></td><td>없음</td><td>브리지: <code>event.source === window.parent</code>. 응답으로 <code>bridge-ready</code>를 다시 보낸다</td></tr>
 <tr><td>부모 → 브리지</td><td><code>mode</code></td><td><code>{ mode: "browse" | "comment" }</code></td><td>브리지: <code>event.source === window.parent</code>, mode 허용 목록</td></tr>
 <tr><td>브리지 → 부모</td><td><code>anchor-picked</code></td><td><code>{ selector, relX, relY, quote? }</code></td><td>부모: <code>event.source === iframe.contentWindow</code>, selector는 문자열·500자 이하, relX·relY는 0~1 숫자, quote는 있으면 1~300자 문자열</td></tr>
 <tr><td>부모 → 브리지</td><td><code>render-pins</code></td><td><code>[{ id, n, selector, relX, relY, quote?, resolved }]</code></td><td>브리지: 출처 확인, 배열·타입 확인</td></tr>
@@ -175,7 +194,7 @@ HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; c
 
 <h3>검증 규칙 (브라우저 · API 공통)</h3>
 <ul>
-  <li><code>kind</code> ∈ {image, html}. 파일 종류와 일치해야 한다.</li>
+  <li><code>kind</code> ∈ {image, html, pdf}. 파일 종류와 일치해야 한다. zip 사이트(site) 파일은 html 앵커를 쓴다.</li>
   <li>좌표는 0~1 숫자. 문자열·NaN·범위 밖은 거부.</li>
   <li><code>selector</code>는 문자열, 500자 이하. 문법 검사는 브리지에서 예외 처리로 대신한다.</li>
   <li><code>quote</code>는 선택 사항, 있으면 문자열 1~300자.</li>
@@ -189,6 +208,8 @@ HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; c
   <li><strong>댓글 모드:</strong> 브리지가 캡처 단계에서 클릭을 가로채고(<code>preventDefault</code>) 선택자를 계산해 <code>anchor-picked</code>를 보낸다. 드래그 선택이 있으면 <code>mouseup</code>에서 공통 조상 요소의 선택자와 인용문(<code>quote</code>)을 보내고, 뒤따르는 click은 핀을 만들지 않는다.</li>
   <li class="warn"><strong>샌드박스 제약:</strong> <code>localStorage</code>·<code>sessionStorage</code>·<code>document.cookie</code> 접근이 예외를 던지고, <code>alert</code>·폼 제출·새 창 링크가 막힌다. 로드 시 localStorage를 쓰는 HTML은 깨질 수 있다. 저장소 대체 shim은 넣지 않고 샘플로 얼마나 깨지는지 확인한다.</li>
   <li class="warn"><strong>업로드 HTML의 자체 CSP:</strong> <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code>가 인라인 스크립트를 막으면 브리지가 실행되지 않는다. 이 경우 뷰어는 "이 파일은 핀 댓글을 지원하지 않을 수 있습니다"를 표시하고 목록 댓글만 허용한다.</li>
+  <li class="warn"><strong>zip 사이트(진입 페이지만 핀):</strong> iframe 안에서 다른 페이지로 이동하면 뷰어가 "이 페이지는 핀 댓글 미지원"을 표시하고 댓글 모드를 끈다(앵커에 <code>path</code>를 두지 않는다). 진입 페이지로 돌아오면 핀이 다시 보인다.</li>
+  <li class="warn"><strong>zip 사이트의 한계:</strong> 루트 절대 경로(<code>/assets/…</code>)로 만든 빌드는 깨진다(<code>base: "./"</code> 권장, 경로 재작성은 하지 않는다). <code>connect-src 'none'</code>이라 같은 사이트의 JSON <code>fetch</code>도 막힌다. 하위 폴더 디렉터리 인덱스와 SPA 폴백은 없다. 이전 버전 미리보기·비교는 제공하지 않고(상대 자산이 현재 버전과 섞인다) 되돌리기만 된다. zip 안의 <code>__MACOSX/</code>·<code>.DS_Store</code>는 무시한다.</li>
   <li class="warn"><strong>핀 스타일:</strong> 핀이 페이지 DOM 안에 그려지므로 페이지 CSS가 가리거나 바꿀 수 있다. 그런 사례가 확인되면 Shadow DOM으로 격리한다(미리 넣지 않는다).</li>
   <li><strong>선택자가 깨지는 경우:</strong> 동적으로 바뀌는 페이지는 selector가 안 맞을 수 있다. 핀은 숨기고 댓글 목록에는 남긴다.</li>
 </ul>

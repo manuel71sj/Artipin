@@ -20,12 +20,13 @@ export type Anchor =
 // 파일 종류와 일치하는 앵커만 허용하고, 알려진 키만 뽑아 돌려준다.
 export function parseAnchor(
   raw: unknown,
-  fileKind: "image" | "html" | "pdf",
+  fileKind: "image" | "html" | "pdf" | "site",
 ): { anchor: Anchor } | { error: string } {
   if (!isRecord(raw)) return { error: "anchor 형식이 올바르지 않습니다." };
   if (raw.kind !== "image" && raw.kind !== "html" && raw.kind !== "pdf")
     return { error: "anchor.kind가 올바르지 않습니다." };
-  if (raw.kind !== fileKind)
+  // site(zip) 파일은 진입 페이지에 html 앵커를 단다.
+  if (raw.kind !== (fileKind === "site" ? "html" : fileKind))
     return { error: "anchor.kind가 파일 종류와 맞지 않습니다." };
 
   if (raw.kind === "image") {

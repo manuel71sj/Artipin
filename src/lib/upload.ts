@@ -8,6 +8,30 @@ export const PDF_MAX_BYTES = 20 * 1024 * 1024;
 export const PDF_MAX_PAGES = 50;
 export const PDF_TIMEOUT_MS = 30_000;
 export const PDF_PAGE_PX = 1600;
+// zip은 업로드 때 풀어 uploads/<uuid>/ 디렉터리로 저장한다. SITE_MAX_BYTES는 압축을 푼 총량, SITE_MAX_ENTRIES는 읽은 항목 수(디렉터리·건너뛴 항목 포함)다.
+export const ZIP_MAX_BYTES = 20 * 1024 * 1024;
+export const SITE_MAX_BYTES = 20 * 1024 * 1024;
+export const SITE_MAX_ENTRIES = 300;
+// zip 안에 둘 수 있는 확장자와 서빙할 Content-Type. 표 밖 확장자는 업로드 거절·서빙 404다.
+export const SITE_TYPES = new Map([
+  ["html", "text/html; charset=utf-8"],
+  ["htm", "text/html; charset=utf-8"],
+  ["css", "text/css; charset=utf-8"],
+  ["js", "text/javascript; charset=utf-8"],
+  ["mjs", "text/javascript; charset=utf-8"],
+  ["json", "application/json"],
+  ["png", "image/png"],
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["gif", "image/gif"],
+  ["webp", "image/webp"],
+  ["svg", "image/svg+xml"],
+  ["ico", "image/x-icon"],
+  ["woff", "font/woff"],
+  ["woff2", "font/woff2"],
+  ["ttf", "font/ttf"],
+  ["otf", "font/otf"],
+]);
 
 const startsWith = (buf: Buffer, bytes: number[], offset = 0) =>
   bytes.every((b, i) => buf[offset + i] === b);
@@ -28,10 +52,10 @@ export function imageMime(
 }
 
 export type UploadCheck =
-  | { ok: true; kind: "image" | "html" | "pdf"; body: Buffer }
+  | { ok: true; kind: "image" | "html" | "pdf" | "site"; body: Buffer }
   | { ok: false; error: string };
 
-const mb = (bytes: number) => `${bytes / 1024 / 1024}MB`;
+export const mb = (bytes: number) => `${bytes / 1024 / 1024}MB`;
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -81,6 +105,16 @@ export function checkUpload(name: string, data: Buffer): UploadCheck {
     }
     return { ok: true, kind: "pdf", body: data };
   }
+  if (startsWith(data, [0x50, 0x4b, 0x03, 0x04])) {
+    // "PK\x03\x04". 풀기와 항목 검사는 저장 단계(extractSite)에서 한다.
+    if (data.length > ZIP_MAX_BYTES) {
+      return {
+        ok: false,
+        error: `zip은 ${mb(ZIP_MAX_BYTES)} 이하만 올릴 수 있습니다.`,
+      };
+    }
+    return { ok: true, kind: "site", body: data };
+  }
   const lower = name.toLowerCase();
   const isMarkdown = lower.endsWith(".md") || lower.endsWith(".markdown");
   const isJson = lower.endsWith(".json");
@@ -120,6 +154,6 @@ export function checkUpload(name: string, data: Buffer): UploadCheck {
   return {
     ok: false,
     error:
-      "허용되지 않는 형식입니다. PNG·JPG·WebP 이미지, PDF 또는 .html·.md·.markdown·.json 파일만 올릴 수 있습니다.",
+      "허용되지 않는 형식입니다. PNG·JPG·WebP 이미지, PDF, .zip 또는 .html·.md·.markdown·.json 파일만 올릴 수 있습니다.",
   };
 }

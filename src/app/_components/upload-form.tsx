@@ -88,7 +88,11 @@ export function UploadForm() {
         <span className={styles.hint}>
           {dragging
             ? "놓으면 바로 올립니다"
-            : ".html·.md·.markdown·.json 5MB, 이미지(PNG·JPG·WebP) 10MB, PDF 20MB·50페이지 이하"}
+            : ".html·.md·.markdown·.json 5MB, 이미지(PNG·JPG·WebP) 10MB, PDF 20MB·50페이지 이하, .zip(index.html 포함) 20MB"}
+        </span>
+        <span className={styles.hint}>
+          {/* 루트 절대 경로(/assets/…) 빌드는 깨지므로 상대 경로로 내보내게 안내한다 */}
+          zip은 빌드 결과를 상대 경로로 내보내세요(Vite는 base: "./").
         </span>
       </div>
 

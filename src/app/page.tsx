@@ -84,7 +84,14 @@ export default async function Home() {
                     {f.title}
                   </a>
                   <span className={styles.kind}>
-                    {{ image: "이미지", html: "HTML", pdf: "PDF" }[f.kind]}
+                    {
+                      {
+                        image: "이미지",
+                        html: "HTML",
+                        pdf: "PDF",
+                        site: "사이트",
+                      }[f.kind]
+                    }
                   </span>
                   {f.expiresAt !== null &&
                     (f.expiresAt <= Date.now() ? (

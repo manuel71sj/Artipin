@@ -32,7 +32,7 @@ export const files = sqliteTable("files", {
   ownerId: integer("owner_id")
     .notNull()
     .references(() => owners.id),
-  kind: text("kind", { enum: ["image", "html", "pdf"] }).notNull(),
+  kind: text("kind", { enum: ["image", "html", "pdf", "site"] }).notNull(),
   title: text("title").notNull(),
   storagePath: text("storage_path").notNull(),
   size: integer("size").notNull(),

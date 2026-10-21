@@ -90,7 +90,11 @@ export default async function SharePage({
       <div className="share-head">
         <h1 className="share-title">{file.title}</h1>
         <span className="share-kind">
-          {{ image: "이미지", html: "HTML", pdf: "PDF" }[file.kind]}
+          {
+            { image: "이미지", html: "HTML", pdf: "PDF", site: "사이트" }[
+              file.kind
+            ]
+          }
         </span>
         <span className="share-when">
           {new Date(file.createdAt).toLocaleString("ko-KR", {
@@ -108,6 +112,7 @@ export default async function SharePage({
           fileId={file.id}
           token={token}
           contentBase={contentOrigin()}
+          kind={file.kind}
           versions={versions.map((v, i) => ({
             no: v.no,
             createdLabel: relativeTime(v.createdAt),
@@ -136,7 +141,7 @@ export default async function SharePage({
     </>
   );
 
-  if (file.kind === "html") {
+  if (file.kind === "html" || file.kind === "site") {
     return (
       <>
         {bar}
@@ -145,7 +150,14 @@ export default async function SharePage({
           {/* 롤백은 iframe src(/c/{token})를 바꾸지 않으므로 본문이 바뀌면 재마운트해 다시 불러온다 */}
           <HtmlViewer
             key={file.storagePath}
-            src={`${contentOrigin()}/c/${token}`}
+            src={
+              file.kind === "site"
+                ? `${contentOrigin()}/c/${token}/index.html`
+                : `${contentOrigin()}/c/${token}`
+            }
+            entryPath={
+              file.kind === "site" ? `/c/${token}/index.html` : undefined
+            }
             token={token}
             items={items}
             isOwner={isOwner}

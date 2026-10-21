@@ -15,11 +15,13 @@ export function VersionList({
   fileId,
   token,
   contentBase,
+  kind,
   versions,
 }: {
   fileId: number;
   token: string;
   contentBase: string;
+  kind: string;
   versions: VersionItem[];
 }) {
   const router = useRouter();
@@ -52,20 +54,25 @@ export function VersionList({
               <span className="share-versions-current">현재</span>
             ) : (
               <>
-                <a
-                  className="copy-link"
-                  href={`${contentBase}/c/${token}?v=${v.no}`}
-                  target="_blank"
-                  rel="noopener"
-                >
-                  보기
-                </a>
-                <a
-                  className="copy-link"
-                  href={`/s/${token}/compare?a=${v.no}&b=${current?.no}`}
-                >
-                  현재와 비교
-                </a>
+                {/* site는 이전 버전의 상대 자산이 현재 버전에서 읽혀 섞이므로 미리보기·비교 없이 되돌리기만 둔다 */}
+                {kind === "site" ? null : (
+                  <>
+                    <a
+                      className="copy-link"
+                      href={`${contentBase}/c/${token}?v=${v.no}`}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      보기
+                    </a>
+                    <a
+                      className="copy-link"
+                      href={`/s/${token}/compare?a=${v.no}&b=${current?.no}`}
+                    >
+                      현재와 비교
+                    </a>
+                  </>
+                )}
                 <button
                   type="button"
                   className="copy-link"
