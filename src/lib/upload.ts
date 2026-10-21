@@ -3,6 +3,11 @@ import { parse } from "marked";
 // 업로드 허용 형식·한도. 쓰면서 조정할 값은 여기만 고친다.
 export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const HTML_MAX_BYTES = 5 * 1024 * 1024;
+// PDF는 업로드 때 pdftoppm으로 페이지 PNG로 바꾼다. PAGE_PX는 페이지 긴 변의 픽셀 상한이다.
+export const PDF_MAX_BYTES = 20 * 1024 * 1024;
+export const PDF_MAX_PAGES = 50;
+export const PDF_TIMEOUT_MS = 30_000;
+export const PDF_PAGE_PX = 1600;
 
 const startsWith = (buf: Buffer, bytes: number[], offset = 0) =>
   bytes.every((b, i) => buf[offset + i] === b);
@@ -23,7 +28,7 @@ export function imageMime(
 }
 
 export type UploadCheck =
-  | { ok: true; kind: "image" | "html"; body: Buffer }
+  | { ok: true; kind: "image" | "html" | "pdf"; body: Buffer }
   | { ok: false; error: string };
 
 const mb = (bytes: number) => `${bytes / 1024 / 1024}MB`;
@@ -66,6 +71,16 @@ export function checkUpload(name: string, data: Buffer): UploadCheck {
     }
     return { ok: true, kind: "image", body: data };
   }
+  if (startsWith(data, [0x25, 0x50, 0x44, 0x46, 0x2d])) {
+    // "%PDF-"
+    if (data.length > PDF_MAX_BYTES) {
+      return {
+        ok: false,
+        error: `PDF는 ${mb(PDF_MAX_BYTES)} 이하만 올릴 수 있습니다.`,
+      };
+    }
+    return { ok: true, kind: "pdf", body: data };
+  }
   const lower = name.toLowerCase();
   const isMarkdown = lower.endsWith(".md") || lower.endsWith(".markdown");
   const isJson = lower.endsWith(".json");
@@ -105,6 +120,6 @@ export function checkUpload(name: string, data: Buffer): UploadCheck {
   return {
     ok: false,
     error:
-      "허용되지 않는 형식입니다. PNG·JPG·WebP 이미지 또는 .html·.md·.markdown·.json 파일만 올릴 수 있습니다.",
+      "허용되지 않는 형식입니다. PNG·JPG·WebP 이미지, PDF 또는 .html·.md·.markdown·.json 파일만 올릴 수 있습니다.",
   };
 }

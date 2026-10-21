@@ -69,6 +69,7 @@
 <tr><td>API 직접 호출로 임의 anchor 저장</td><td>댓글 생성 API가 같은 스키마 검증, 위반은 400</td><td class="ok">없음</td></tr>
 <tr><td>토큰 추측</td><td>128비트 랜덤 토큰, 추측 가능한 id 경로 없음</td><td class="ok">없음</td></tr>
 <tr><td>같은 공유 토큰 보유자가 <code>?v={no}</code>로 이전 버전 본문 열람</td><td>제한 없음 — 버전은 같은 토큰의 일부(이슈 #28 설계)</td><td class="warn">교체한 이전 본문도 링크 보유자에게 보인다. 끊으려면 파일 삭제(모든 버전 본문 삭제)</td></tr>
+<tr><td>업로드 PDF가 서버 poppler 취약점을 노림</td><td>업로드 때 <code>pdftoppm</code>으로 1회만 변환(조회 경로에서는 파서가 돌지 않음), SIGKILL 타임아웃·페이지 상한(<code>-l</code>)·<code>-scale-to</code> 픽셀 상한, 자식 프로세스 env는 PATH만, 컨테이너는 비루트(<code>node</code>)</td><td class="warn">poppler 취약점이 있으면 컨테이너 <code>node</code> 권한으로 <code>/data</code>(DB·업로드)에 닿을 수 있다. 동시 변환 수 제한은 없다</td></tr>
 <tr><td>앱 화면을 다른 사이트가 프레임으로 삽입</td><td>APP_HOST 응답에 <code>frame-ancestors 'none'</code></td><td class="ok">없음</td></tr>
 <tr><td>MIME 스니핑·인코딩 혼동</td><td><code>nosniff</code>, Content-Type 고정(HTML은 UTF-8만 업로드 허용), 이미지는 매직바이트 판정값</td><td class="ok">없음</td></tr>
 </table></div>
@@ -105,6 +106,10 @@
   Content-Type: image/png | image/jpeg | image/webp   (매직바이트 검증 결과)
   X-Content-Type-Options: nosniff
 
+PDF
+  페이지 PNG를 이미지와 같은 헤더로 서빙: /c/{share_token}?p={n}  (p 없으면 1, ?v=와 함께 쓰면 그 버전의 페이지)
+  없는 페이지·숫자가 아닌 p: 404
+
 /c/{share_token}?v={no}
   해당 버전 본문. 위 헤더는 그대로.
   없는 버전·숫자가 아닌 v: 404
@@ -120,6 +125,7 @@
 
 <h2>3. 앵커</h2>
 <pre><code>이미지:  { "kind": "image", "x": 0.45, "y": 0.32 }                      // 이미지 크기 대비 0~1
+PDF:     { "kind": "pdf",   "page": 3, "x": 0.45, "y": 0.32 }                  // page는 1부터, x·y는 그 페이지 이미지 대비 0~1
 HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; canvas", "relX": 0.62, "relY": 0.31 }
 답글:    anchor = null  (답글은 1단계, 부모 댓글의 핀을 따름)</code></pre>
 

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
-import { saveFile } from "@/lib/storage";
+import { saveUpload } from "@/lib/storage";
 import { checkUpload } from "@/lib/upload";
 
 export async function POST(request: Request) {
@@ -34,7 +34,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: check.error }, { status: 400 });
 
   const shareToken = randomBytes(16).toString("base64url");
-  const storagePath = await saveFile(check.body);
+  const saved = await saveUpload(check.kind, check.body);
+  if (!saved.ok)
+    return NextResponse.json({ error: saved.error }, { status: 400 });
+  const { storagePath } = saved;
   // 현재 본문 = 최대 no 버전이라는 불변식을 지키려고 files와 no=1 행을 한 트랜잭션에 만든다.
   db.transaction((tx) => {
     const { id } = tx

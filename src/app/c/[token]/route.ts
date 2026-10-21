@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { and, eq, isNull } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
@@ -8,6 +9,7 @@ import { readFile } from "@/lib/storage";
 import { imageMime } from "@/lib/upload";
 
 // CONTENT_HOST에서만 도달한다(호스트 분기는 proxy.ts). 업로드 본문을 앱과 다른 origin에서 서빙한다.
+// PDF는 페이지 PNG로 변환돼 있어 ?p={n}(기본 1)으로 n페이지 이미지를 서빙한다. ?v=와 함께 쓰면 그 버전의 페이지다.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
@@ -35,14 +37,21 @@ export async function GET(
         .where(and(eq(files.shareToken, token), isNull(files.deletedAt)));
   if (!file) return new NextResponse(null, { status: 404 });
 
+  let path = file.storagePath;
+  if (file.kind === "pdf") {
+    const p = request.nextUrl.searchParams.get("p") ?? "1";
+    if (!/^\d+$/.test(p)) return new NextResponse(null, { status: 404 });
+    path = join(path, `${p}.png`);
+  }
+
   let body: Buffer;
   try {
-    body = await readFile(file.storagePath);
+    body = await readFile(path);
   } catch {
     return new NextResponse(null, { status: 404 });
   }
 
-  if (file.kind === "image") {
+  if (file.kind === "image" || file.kind === "pdf") {
     const mime = imageMime(body);
     if (!mime) return new NextResponse(null, { status: 404 });
     return new NextResponse(new Uint8Array(body), {

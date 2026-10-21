@@ -83,7 +83,7 @@ export default async function Home() {
                     {f.title}
                   </a>
                   <span className={styles.kind}>
-                    {f.kind === "image" ? "이미지" : "HTML"}
+                    {{ image: "이미지", html: "HTML", pdf: "PDF" }[f.kind]}
                   </span>
                 </span>
                 <span className={styles.pinCell}>

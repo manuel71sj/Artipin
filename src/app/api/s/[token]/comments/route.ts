@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
+import { PDF_MAX_PAGES } from "@/lib/upload";
 import { getVisitorId } from "@/lib/visitor";
 
 const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
@@ -15,6 +16,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 type Anchor =
   | { kind: "image"; x: number; y: number }
+  | { kind: "pdf"; page: number; x: number; y: number }
   | {
       kind: "html";
       selector: string;
@@ -26,10 +28,10 @@ type Anchor =
 // 파일 종류와 일치하는 앵커만 허용하고, 알려진 키만 뽑아 돌려준다.
 function parseAnchor(
   raw: unknown,
-  fileKind: "image" | "html",
+  fileKind: "image" | "html" | "pdf",
 ): { anchor: Anchor } | { error: string } {
   if (!isRecord(raw)) return { error: "anchor 형식이 올바르지 않습니다." };
-  if (raw.kind !== "image" && raw.kind !== "html")
+  if (raw.kind !== "image" && raw.kind !== "html" && raw.kind !== "pdf")
     return { error: "anchor.kind가 올바르지 않습니다." };
   if (raw.kind !== fileKind)
     return { error: "anchor.kind가 파일 종류와 맞지 않습니다." };
@@ -38,6 +40,19 @@ function parseAnchor(
     if (!isUnit(raw.x) || !isUnit(raw.y))
       return { error: "anchor 좌표는 0~1 사이 숫자여야 합니다." };
     return { anchor: { kind: "image", x: raw.x, y: raw.y } };
+  }
+  if (raw.kind === "pdf") {
+    if (
+      !Number.isInteger(raw.page) ||
+      (raw.page as number) < 1 ||
+      (raw.page as number) > PDF_MAX_PAGES
+    )
+      return { error: `anchor.page는 1~${PDF_MAX_PAGES} 정수여야 합니다.` };
+    if (!isUnit(raw.x) || !isUnit(raw.y))
+      return { error: "anchor 좌표는 0~1 사이 숫자여야 합니다." };
+    return {
+      anchor: { kind: "pdf", page: raw.page as number, x: raw.x, y: raw.y },
+    };
   }
   if (
     typeof raw.selector !== "string" ||

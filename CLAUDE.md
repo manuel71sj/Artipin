@@ -54,5 +54,5 @@ pnpm metrics                          # scripts/metrics.sql 지표 출력
 - 실행 중인 `app.db`는 `cp`로 복사하지 않는다(WAL). 호스트 sqlite3와 컨테이너가 같은 DB를 동시에 열지 않는다.
 
 ### 업로드·방문 기록
-- `src/lib/upload.ts`: 형식·한도의 단일 위치. 이미지는 매직 바이트로 판정(PNG/JPEG/WebP ≤10MB), HTML·Markdown·JSON은 확장자(≤5MB, .md·.markdown·.json은 업로드·교체 시 HTML로 변환해 kind html로 저장하며 새니타이즈하지 않는다). 클라이언트 MIME은 믿지 않는다. 10MB 업로드를 위해 `next.config.ts`의 `proxyClientMaxBodySize`를 올려 두었다.
+- `src/lib/upload.ts`: 형식·한도의 단일 위치. 이미지는 매직 바이트로 판정(PNG/JPEG/WebP ≤10MB), PDF는 `%PDF-`로 판정(≤20MB·50쪽)하고 업로드 시 `pdftoppm`으로 `uploads/<uuid>/{n}.png` 디렉터리로 변환해 `/c/{token}?p={n}`으로 서빙하며(앵커 `{kind:"pdf", page, x, y}`), HTML·Markdown·JSON은 확장자(≤5MB, .md·.markdown·.json은 업로드·교체 시 HTML로 변환해 kind html로 저장하며 새니타이즈하지 않는다). 클라이언트 MIME은 믿지 않는다. 10MB·20MB 업로드를 위해 `next.config.ts`의 `proxyClientMaxBodySize`를 올려 두었다.
 - 댓글 작성자는 로그인하지 않는다. APP_HOST 전용 `artipin_visitor` 쿠키(`src/lib/visitor.ts`, Route Handler에서만 호출)로 익명 방문자를 구분하고, 뷰어 로드 시 `/api/s/[token]/view`가 `views`에 기록한다(소유자 본인 조회 제외).

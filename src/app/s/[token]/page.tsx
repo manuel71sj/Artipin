@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files, fileVersions, views } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
+import { pdfPageCount } from "@/lib/storage";
 import { relativeTime } from "@/lib/time";
 import { readVisitorId } from "@/lib/visitor";
 import type { CommentItem } from "./_components/comment-panel";
@@ -72,14 +73,17 @@ export default async function SharePage({
         kind?: string;
         x?: number;
         y?: number;
+        page?: number;
         selector?: string;
         relX?: number;
         relY?: number;
         quote?: unknown;
       } | null;
       const pin =
-        a?.kind === "image" && a.x !== undefined && a.y !== undefined
-          ? { x: a.x, y: a.y }
+        (a?.kind === "image" || (a?.kind === "pdf" && a.page !== undefined)) &&
+        a.x !== undefined &&
+        a.y !== undefined
+          ? { x: a.x, y: a.y, page: a.page }
           : null;
       const htmlPin =
         a?.kind === "html" &&
@@ -130,7 +134,7 @@ export default async function SharePage({
       <div className="share-head">
         <h1 className="share-title">{file.title}</h1>
         <span className="share-kind">
-          {file.kind === "image" ? "이미지" : "HTML"}
+          {{ image: "이미지", html: "HTML", pdf: "PDF" }[file.kind]}
         </span>
         <span className="share-when">
           {new Date(file.createdAt).toLocaleString("ko-KR", {
@@ -195,6 +199,16 @@ export default async function SharePage({
     );
   }
 
+  // PDF는 페이지마다 /c/{token}?p={n}으로 PNG를 받는다.
+  const t = file.replacedAt ? `t=${file.replacedAt}` : "";
+  const pages =
+    file.kind === "pdf"
+      ? Array.from(
+          { length: await pdfPageCount(file.storagePath) },
+          (_, i) => `${contentOrigin()}/c/${token}?p=${i + 1}${t && `&${t}`}`,
+        )
+      : [`${contentOrigin()}/c/${token}${t && `?${t}`}`];
+
   return (
     <>
       {bar}
@@ -203,7 +217,8 @@ export default async function SharePage({
         {/* 같은 URL의 이미지는 재사용되므로 교체·롤백 뒤에는 ?t=로 URL을 바꾼다 */}
         <ImageViewer
           key={file.storagePath}
-          src={`${contentOrigin()}/c/${token}${file.replacedAt ? `?t=${file.replacedAt}` : ""}`}
+          pages={pages}
+          kind={file.kind}
           alt={file.title}
           token={token}
           items={items}

@@ -9,6 +9,8 @@ pnpm install
 pnpm dev
 ```
 
+PDF 업로드는 `pdftoppm`(poppler)으로 페이지 이미지를 만들므로 로컬에 poppler가 필요하다(macOS: `brew install poppler`). 컨테이너 이미지에는 `poppler-utils`가 들어 있다.
+
 ## 환경변수
 
 | 이름 | 설명 |
@@ -40,6 +42,12 @@ docker run -d --name artipin -p 3000:3000 -v artipin-data:/data \
   -e AUTH_SECRET=... -e AUTH_GOOGLE_ID=... -e AUTH_GOOGLE_SECRET=... \
   -e AUTH_GITHUB_ID=... -e AUTH_GITHUB_SECRET=... -e AUTH_TRUST_HOST=true \
   artipin
+```
+
+컨테이너는 비루트 사용자 `node`(uid 1000)로 실행된다. 이 버전을 root 소유 파일이 든 기존 볼륨에 처음 배포할 때는 서비스를 멈춘 뒤(Swarm이면 scale 0) 한 번 소유자를 바꾸고 배포한다.
+
+```bash
+docker run --rm -v artipin-data:/data alpine chown -R 1000:1000 /data
 ```
 
 기동할 때 마이그레이션이 자동 적용된다(`pnpm db:migrate`와 같은 동작). 프록시는 요청의 `Host` 헤더를 그대로 전달해야 한다.

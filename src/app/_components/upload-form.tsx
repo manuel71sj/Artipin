@@ -88,7 +88,7 @@ export function UploadForm() {
         <span className={styles.hint}>
           {dragging
             ? "놓으면 바로 올립니다"
-            : ".html·.md·.markdown·.json 5MB, 이미지(PNG·JPG·WebP) 10MB 이하"}
+            : ".html·.md·.markdown·.json 5MB, 이미지(PNG·JPG·WebP) 10MB, PDF 20MB·50페이지 이하"}
         </span>
       </div>
 

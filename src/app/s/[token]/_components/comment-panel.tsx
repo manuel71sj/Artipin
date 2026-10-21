@@ -14,7 +14,7 @@ export type ReplyItem = {
 
 export type CommentItem = ReplyItem & {
   resolved: boolean;
-  pin: { x: number; y: number } | null;
+  pin: { x: number; y: number; page?: number } | null;
   htmlPin: {
     selector: string;
     relX: number;
@@ -26,6 +26,7 @@ export type CommentItem = ReplyItem & {
 };
 
 export type ImagePin = { kind: "image"; x: number; y: number };
+export type PdfPin = { kind: "pdf"; page: number; x: number; y: number };
 export type HtmlPin = {
   kind: "html";
   selector: string;
@@ -33,7 +34,7 @@ export type HtmlPin = {
   relY: number;
   quote?: string;
 };
-export type PendingPin = ImagePin | HtmlPin;
+export type PendingPin = ImagePin | PdfPin | HtmlPin;
 
 // 답글 머리 줄: 작성자·시각, 오른쪽 끝에 삭제 아이콘.
 function ReplyHead({ c, onDelete }: { c: ReplyItem; onDelete: () => void }) {

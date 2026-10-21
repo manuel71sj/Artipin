@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
-import { removeFile, saveFile } from "@/lib/storage";
+import { removeFile, saveUpload } from "@/lib/storage";
 import { checkUpload } from "@/lib/upload";
 
 export async function DELETE(
@@ -92,7 +92,7 @@ export async function PUT(
       { error: "파일을 찾을 수 없습니다." },
       { status: 404 },
     );
-  // 이미지 앵커는 0~1 좌표, HTML 앵커는 선택자라 종류가 바뀌면 기존 핀이 의미를 잃는다.
+  // 이미지 앵커는 0~1 좌표, PDF 앵커는 페이지+좌표, HTML 앵커는 선택자라 종류가 바뀌면 기존 핀이 의미를 잃는다.
   if (check.kind !== row.kind)
     return NextResponse.json(
       { error: "같은 종류의 파일로만 교체할 수 있습니다." },
@@ -100,7 +100,10 @@ export async function PUT(
     );
 
   // 새 파일을 먼저 저장하고 버전 행 추가와 행 갱신을 한 트랜잭션에 묶는다. 갱신 전까지는 이전 본문이 서빙된다.
-  const storagePath = await saveFile(check.body);
+  const saved = await saveUpload(check.kind, check.body);
+  if (!saved.ok)
+    return NextResponse.json({ error: saved.error }, { status: 400 });
+  const { storagePath } = saved;
   db.transaction((tx) => {
     tx.insert(fileVersions)
       .values({
