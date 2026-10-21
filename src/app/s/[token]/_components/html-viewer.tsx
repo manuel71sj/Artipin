@@ -47,6 +47,10 @@ function parseMessage(
     d.selector.length <= 500 &&
     isRel(d.relX) &&
     isRel(d.relY) &&
+    (d.quote === undefined ||
+      (typeof d.quote === "string" &&
+        d.quote.length >= 1 &&
+        d.quote.length <= 300)) &&
     typeof d.x === "number" &&
     Number.isFinite(d.x) &&
     typeof d.y === "number" &&
@@ -61,6 +65,7 @@ function parseMessage(
         selector: d.selector,
         relX: d.relX,
         relY: d.relY,
+        ...(typeof d.quote === "string" ? { quote: d.quote } : {}),
       },
     };
   }
@@ -113,6 +118,7 @@ export function HtmlViewer({
                 selector: c.htmlPin.selector,
                 relX: c.htmlPin.relX,
                 relY: c.htmlPin.relY,
+                quote: c.htmlPin.quote,
                 resolved: c.resolved,
               },
             ]

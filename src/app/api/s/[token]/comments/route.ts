@@ -15,7 +15,13 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 type Anchor =
   | { kind: "image"; x: number; y: number }
-  | { kind: "html"; selector: string; relX: number; relY: number };
+  | {
+      kind: "html";
+      selector: string;
+      relX: number;
+      relY: number;
+      quote?: string;
+    };
 
 // 파일 종류와 일치하는 앵커만 허용하고, 알려진 키만 뽑아 돌려준다.
 function parseAnchor(
@@ -41,12 +47,20 @@ function parseAnchor(
     return { error: "anchor.selector는 1~500자 문자열이어야 합니다." };
   if (!isUnit(raw.relX) || !isUnit(raw.relY))
     return { error: "anchor 좌표는 0~1 사이 숫자여야 합니다." };
+  if (
+    raw.quote !== undefined &&
+    (typeof raw.quote !== "string" ||
+      raw.quote.length < 1 ||
+      raw.quote.length > 300)
+  )
+    return { error: "anchor.quote는 1~300자 문자열이어야 합니다." };
   return {
     anchor: {
       kind: "html",
       selector: raw.selector,
       relX: raw.relX,
       relY: raw.relY,
+      ...(typeof raw.quote === "string" ? { quote: raw.quote } : {}),
     },
   };
 }

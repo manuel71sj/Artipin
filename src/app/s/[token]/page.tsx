@@ -61,6 +61,7 @@ export default async function SharePage({
         selector?: string;
         relX?: number;
         relY?: number;
+        quote?: unknown;
       } | null;
       const pin =
         a?.kind === "image" && a.x !== undefined && a.y !== undefined
@@ -71,7 +72,12 @@ export default async function SharePage({
         a.selector !== undefined &&
         a.relX !== undefined &&
         a.relY !== undefined
-          ? { selector: a.selector, relX: a.relX, relY: a.relY }
+          ? {
+              selector: a.selector,
+              relX: a.relX,
+              relY: a.relY,
+              ...(typeof a.quote === "string" ? { quote: a.quote } : {}),
+            }
           : null;
       return {
         id: c.id,

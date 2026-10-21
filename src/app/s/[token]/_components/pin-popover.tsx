@@ -9,10 +9,12 @@ const NAME_KEY = "artipin:name";
 function Entry({
   c,
   state,
+  quote,
   onDelete,
 }: {
   c: ReplyItem;
   state?: string;
+  quote?: string;
   onDelete: () => void;
 }) {
   return (
@@ -39,6 +41,7 @@ function Entry({
           </button>
         ) : null}
       </div>
+      {quote ? <p className="comment-quote">{quote}</p> : null}
       <p className="pin-popover-body">{c.body}</p>
     </div>
   );
@@ -157,6 +160,7 @@ export function PinPopover({
         <Entry
           c={item}
           state={item.resolved ? "해결됨" : undefined}
+          quote={item.htmlPin?.quote}
           onDelete={() => remove(item.id)}
         />
       </div>

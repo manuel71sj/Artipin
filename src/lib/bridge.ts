@@ -8,6 +8,8 @@ const BRIDGE = `(function () {
   var boxes = [];
   var pickedSel = null;
   var hoverEl = null;
+  var skipClick = false;
+  var styled = false;
   var MAX = 500;
 
   function uniqueId(el) {
@@ -98,6 +100,36 @@ const BRIDGE = `(function () {
     return null;
   }
 
+  // 드래그 선택을 선택 앵커로 보낸다. 뒤따르는 click이 요소 핀을 또 만들지 않게 skipClick을 세운다.
+  function onMouseUp() {
+    if (mode !== "comment") return;
+    var sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+    var range = sel.getRangeAt(0);
+    var quote = range.toString().replace(/\\s+/g, " ").trim().slice(0, 300);
+    if (!quote) return;
+    var el = range.commonAncestorContainer;
+    if (el.nodeType !== 1) el = el.parentElement;
+    if (!el) return;
+    var selector = selectorOf(el);
+    if (!selector) return;
+    var r0 = range.getClientRects()[0] || range.getBoundingClientRect();
+    var er = el.getBoundingClientRect();
+    skipClick = true;
+    parent.postMessage(
+      {
+        type: "anchor-picked",
+        selector: selector,
+        relX: er.width > 0 ? clamp((r0.left - er.left) / er.width) : 0,
+        relY: er.height > 0 ? clamp((r0.top - er.top) / er.height) : 0,
+        quote: quote,
+        x: r0.left,
+        y: r0.top,
+      },
+      "*"
+    );
+  }
+
   function onClick(e) {
     var hit = pinOf(e.target);
     if (hit) {
@@ -121,6 +153,10 @@ const BRIDGE = `(function () {
     }
     e.preventDefault();
     e.stopPropagation();
+    if (skipClick) {
+      skipClick = false;
+      return;
+    }
     var el = e.target;
     if (!el || el.nodeType !== 1) return;
     var selector = selectorOf(el);
@@ -161,6 +197,62 @@ const BRIDGE = `(function () {
       drawn.push({ el: d, id: p.id });
     });
     paint();
+    highlight();
+  }
+
+  // 요소 안 텍스트를 공백 묶음 한 칸으로 줄여 가며 문자마다 fn(문자, 텍스트 노드, 오프셋)을 부른다. fn이 true를 돌려주면 멈춘다.
+  function walkText(root, fn) {
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    var prevSpace = false;
+    for (var n = w.nextNode(); n; n = w.nextNode()) {
+      var t = n.data;
+      for (var i = 0; i < t.length; i++) {
+        var sp = /\\s/.test(t.charAt(i));
+        if (sp && prevSpace) continue;
+        prevSpace = sp;
+        if (fn(sp ? " " : t.charAt(i), n, i)) return;
+      }
+    }
+  }
+
+  // 요소 안에서 인용문의 첫 일치를 Range로 돌려준다. 없으면 null.
+  function quoteRange(el, quote) {
+    var norm = "";
+    walkText(el, function (ch) {
+      norm += ch;
+    });
+    var at = norm.indexOf(quote);
+    if (at < 0) return null;
+    var range = document.createRange();
+    var k = 0;
+    walkText(el, function (ch, n, i) {
+      if (k === at) range.setStart(n, i);
+      if (k === at + quote.length - 1) {
+        range.setEnd(n, i + 1);
+        return true;
+      }
+      k++;
+      return false;
+    });
+    return range;
+  }
+
+  // 인용문을 CSS Custom Highlight로 칠한다. DOM은 건드리지 않고, 못 찾은 핀은 요소 핀만 남긴다.
+  function highlight() {
+    if (!styled) {
+      var st = document.createElement("style");
+      st.textContent = "::highlight(artipin-quote){background-color:rgba(255,200,0,.45)}";
+      document.documentElement.appendChild(st);
+      styled = true;
+    }
+    var h = new Highlight();
+    pins.forEach(function (p) {
+      if (!p.quote) return;
+      var el = find(p.selector);
+      var r = el ? quoteRange(el, p.quote) : null;
+      if (r) h.add(r);
+    });
+    CSS.highlights.set("artipin-quote", h);
   }
 
   function validPins(a) {
@@ -175,7 +267,8 @@ const BRIDGE = `(function () {
           typeof p.selector === "string" &&
           typeof p.relX === "number" &&
           typeof p.relY === "number" &&
-          typeof p.resolved === "boolean"
+          typeof p.resolved === "boolean" &&
+          (p.quote === undefined || typeof p.quote === "string")
         );
       })
     );
@@ -207,6 +300,10 @@ const BRIDGE = `(function () {
       if (hit) hit.el.scrollIntoView({ block: "center", inline: "center" });
     }
   });
+  window.addEventListener("mousedown", function () {
+    skipClick = false;
+  }, true);
+  window.addEventListener("mouseup", onMouseUp, true);
   window.addEventListener("click", onClick, true);
   window.addEventListener("mouseover", function (e) {
     var t = e.target;

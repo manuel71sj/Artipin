@@ -15,7 +15,12 @@ export type ReplyItem = {
 export type CommentItem = ReplyItem & {
   resolved: boolean;
   pin: { x: number; y: number } | null;
-  htmlPin: { selector: string; relX: number; relY: number } | null;
+  htmlPin: {
+    selector: string;
+    relX: number;
+    relY: number;
+    quote?: string;
+  } | null;
   pinNo: number | null;
   replies: ReplyItem[];
 };
@@ -26,6 +31,7 @@ export type HtmlPin = {
   selector: string;
   relX: number;
   relY: number;
+  quote?: string;
 };
 export type PendingPin = ImagePin | HtmlPin;
 
@@ -182,6 +188,9 @@ export function CommentPanel({
                 </button>
                 {expanded ? (
                   <div className="comment-detail">
+                    {c.htmlPin?.quote ? (
+                      <p className="comment-quote">{c.htmlPin.quote}</p>
+                    ) : null}
                     <p className="comment-body">{c.body}</p>
                     {c.replies.map((r) => (
                       <div key={r.id} className="comment-reply">

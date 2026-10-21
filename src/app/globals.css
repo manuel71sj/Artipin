@@ -719,6 +719,18 @@ label,
   overflow-wrap: anywhere;
 }
 
+/* 드래그로 고른 인용문. 한 줄로 두고 넘치면 말줄임 */
+.comment-quote {
+  margin-bottom: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .comment-reply {
   margin-top: var(--space-2);
   padding-left: var(--space-2);
