@@ -6,6 +6,9 @@ const BRIDGE = `(function () {
   var pins = [];
   var drawn = [];
   var boxes = [];
+  var pointers = [];
+  var dots = [];
+  var lastPointer = 0;
   var pickedSel = null;
   var hoverEl = null;
   var skipClick = false;
@@ -198,6 +201,29 @@ const BRIDGE = `(function () {
     });
     paint();
     highlight();
+    drawPointers();
+  }
+
+  // 다른 방문자의 포인터를 selector 요소 기준 위치에 작은 점으로 그린다. 못 찾은 점은 생략한다.
+  function drawPointers() {
+    dots.forEach(function (d) {
+      d.remove();
+    });
+    dots = [];
+    pointers.forEach(function (p) {
+      var el = find(p.selector);
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      var d = document.createElement("div");
+      d.style.cssText =
+        "position:absolute;z-index:2147483645;pointer-events:none;margin:0;padding:0;" +
+        "box-sizing:border-box;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#7c3aed;" +
+        "transform:translate(-50%,-50%);" +
+        "left:" + (r.left + window.scrollX + p.relX * r.width) + "px;" +
+        "top:" + (r.top + window.scrollY + p.relY * r.height) + "px;";
+      document.documentElement.appendChild(d);
+      dots.push(d);
+    });
   }
 
   // 요소 안 텍스트를 공백 묶음 한 칸으로 줄여 가며 문자마다 fn(문자, 텍스트 노드, 오프셋)을 부른다. fn이 true를 돌려주면 멈춘다.
@@ -274,6 +300,22 @@ const BRIDGE = `(function () {
     );
   }
 
+  function validPointers(a) {
+    return (
+      Array.isArray(a) &&
+      a.every(function (p) {
+        return (
+          p &&
+          typeof p === "object" &&
+          typeof p.id === "string" &&
+          typeof p.selector === "string" &&
+          typeof p.relX === "number" &&
+          typeof p.relY === "number"
+        );
+      })
+    );
+  }
+
   window.addEventListener("message", function (e) {
     if (e.source !== parent) return;
     var d = e.data;
@@ -293,6 +335,10 @@ const BRIDGE = `(function () {
       if (!validPins(d.pins)) return;
       pins = d.pins;
       draw();
+    } else if (d.type === "render-pointers") {
+      if (!validPointers(d.pointers)) return;
+      pointers = d.pointers;
+      drawPointers();
     } else if (d.type === "scroll-to-pin") {
       var hit = drawn.filter(function (x) {
         return x.id === d.id;
@@ -314,8 +360,29 @@ const BRIDGE = `(function () {
     hoverEl = null;
     if (mode === "comment") paint();
   });
+  // 커서 공유용으로 위치만 읽는다(수동 청취, preventDefault 없음). 같은 요소 기준 좌표를 100ms에 한 번만 보낸다.
+  window.addEventListener("mousemove", function (e) {
+    var now = Date.now();
+    if (now - lastPointer < 100) return;
+    lastPointer = now;
+    var t = e.target;
+    if (!t || t.nodeType !== 1 || pinOf(t)) return;
+    var selector = selectorOf(t);
+    if (!selector) return;
+    var r = t.getBoundingClientRect();
+    parent.postMessage(
+      {
+        type: "pointer",
+        selector: selector,
+        relX: r.width > 0 ? clamp((e.clientX - r.left) / r.width) : 0,
+        relY: r.height > 0 ? clamp((e.clientY - r.top) / r.height) : 0,
+      },
+      "*"
+    );
+  }, { capture: true, passive: true });
   window.addEventListener("scroll", function () {
     parent.postMessage({ type: "pin-close" }, "*");
+    drawPointers();
   }, true);
   window.addEventListener("keydown", function (e) {
     if (e.key === "Escape") parent.postMessage({ type: "pin-close" }, "*");

@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { preconnect } from "react-dom";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { comments, fileVersions, views } from "@/db/schema";
+import { fileVersions, views } from "@/db/schema";
+import { loadComments } from "@/lib/comments";
 import { contentOrigin } from "@/lib/hosts";
 import { findViewableFile } from "@/lib/shared-file";
 import { pdfPageCount } from "@/lib/storage";
 import { relativeTime } from "@/lib/time";
 import { readVisitorId } from "@/lib/visitor";
 import { StatusPage, statusStyles } from "../../_components/status-page";
-import type { CommentItem } from "./_components/comment-panel";
 import { CopyLink } from "./_components/copy-link";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
@@ -61,11 +61,7 @@ export default async function SharePage({
         .orderBy(desc(fileVersions.no))
     : [];
 
-  const rows = await db
-    .select()
-    .from(comments)
-    .where(eq(comments.fileId, file.id))
-    .orderBy(asc(comments.createdAt), asc(comments.id));
+  const { rows, items } = await loadComments(file.id, can);
 
   // 열람자는 소유자에게만 조회·렌더한다. 익명이라 같은 방문자의 첫 댓글 작성자 이름을 쓴다.
   const viewers = isOwner
@@ -80,62 +76,6 @@ export default async function SharePage({
     if (!viewerNames.has(c.visitorId))
       viewerNames.set(c.visitorId, c.authorName);
   }
-
-  let pinNo = 0;
-  const items: CommentItem[] = rows
-    .filter((c) => c.parentId === null)
-    .map((c) => {
-      const a = c.anchor as {
-        kind?: string;
-        x?: number;
-        y?: number;
-        page?: number;
-        selector?: string;
-        relX?: number;
-        relY?: number;
-        quote?: unknown;
-      } | null;
-      const pin =
-        (a?.kind === "image" || (a?.kind === "pdf" && a.page !== undefined)) &&
-        a.x !== undefined &&
-        a.y !== undefined
-          ? { x: a.x, y: a.y, page: a.page }
-          : null;
-      const htmlPin =
-        a?.kind === "html" &&
-        a.selector !== undefined &&
-        a.relX !== undefined &&
-        a.relY !== undefined
-          ? {
-              selector: a.selector,
-              relX: a.relX,
-              relY: a.relY,
-              ...(typeof a.quote === "string" ? { quote: a.quote } : {}),
-            }
-          : null;
-      return {
-        id: c.id,
-        authorName: c.authorName,
-        isOwner: c.isOwner,
-        body: c.body,
-        createdLabel: relativeTime(c.createdAt),
-        canDelete: can(c.visitorId),
-        resolved: c.resolvedAt !== null,
-        pin,
-        htmlPin,
-        pinNo: pin || htmlPin ? ++pinNo : null,
-        replies: rows
-          .filter((r) => r.parentId === c.id)
-          .map((r) => ({
-            id: r.id,
-            authorName: r.authorName,
-            isOwner: r.isOwner,
-            body: r.body,
-            createdLabel: relativeTime(r.createdAt),
-            canDelete: can(r.visitorId),
-          })),
-      };
-    });
 
   // 링크를 받은 사람이 무엇을 보고 있는지 알 수 있도록 제목·종류·올린 시각을 상단에 둔다.
   const bar = (

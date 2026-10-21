@@ -9,6 +9,8 @@ import {
 } from "./comment-panel";
 import { ModeToggle } from "./mode-toggle";
 import { NewCommentPopover, PinPopover } from "./pin-popover";
+import { useLiveComments } from "./use-live-comments";
+import { usePointers } from "./use-pointers";
 
 // 이미지는 pages가 1개, PDF는 페이지마다 PNG 하나씩이다. PDF 앵커는 페이지 번호(1부터)를 함께 가진다.
 export function ImageViewer({
@@ -16,7 +18,7 @@ export function ImageViewer({
   kind,
   alt,
   token,
-  items,
+  items: initialItems,
   isOwner,
 }: {
   pages: string[];
@@ -26,6 +28,8 @@ export function ImageViewer({
   items: CommentItem[];
   isOwner: boolean;
 }) {
+  const { items, viewing } = useLiveComments(token, initialItems);
+  const { others, move: movePointer } = usePointers(token, viewing);
   const [commentMode, setCommentMode] = useState(false);
   const [pending, setPending] = useState<ImagePin | PdfPin | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
@@ -46,6 +50,17 @@ export function ImageViewer({
     if (!commentMode) return;
     const r = e.currentTarget.getBoundingClientRect();
     setPending(
+      pinAt(
+        page,
+        clamp((e.clientX - r.left) / r.width),
+        clamp((e.clientY - r.top) / r.height),
+      ),
+    );
+  }
+
+  function track(e: React.PointerEvent<HTMLImageElement>, page: number) {
+    const r = e.currentTarget.getBoundingClientRect();
+    movePointer(
       pinAt(
         page,
         clamp((e.clientX - r.left) / r.width),
@@ -117,6 +132,7 @@ export function ImageViewer({
                   fetchPriority={i === 0 ? "high" : undefined}
                   decoding="async"
                   onClick={(e) => place(e, page)}
+                  onPointerMove={(e) => track(e, page)}
                   onKeyDown={(e) => nudge(e, page)}
                   role={commentMode ? "button" : undefined}
                   tabIndex={commentMode ? 0 : undefined}
@@ -126,6 +142,20 @@ export function ImageViewer({
                       : undefined
                   }
                 />
+                {others.map((o) =>
+                  o.anchor.kind !== "html" &&
+                  (o.anchor.kind === "pdf" ? o.anchor.page : 1) === page ? (
+                    <span
+                      key={o.id}
+                      className="pointer-dot"
+                      style={{
+                        left: `${o.anchor.x * 100}%`,
+                        top: `${o.anchor.y * 100}%`,
+                      }}
+                      aria-hidden="true"
+                    />
+                  ) : null,
+                )}
                 {items.map((c) =>
                   c.pin && pinOnPage(c) ? (
                     <button
@@ -192,7 +222,12 @@ export function ImageViewer({
           })}
         </div>
       </section>
-      <CommentPanel items={items} isOwner={isOwner} onSelect={scrollToPin} />
+      <CommentPanel
+        items={items}
+        isOwner={isOwner}
+        viewing={viewing}
+        onSelect={scrollToPin}
+      />
     </>
   );
 }

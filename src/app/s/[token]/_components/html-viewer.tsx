@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommentItem, CommentPanel, type HtmlPin } from "./comment-panel";
 import { ModeToggle } from "./mode-toggle";
 import { NewCommentPopover, PinPopover } from "./pin-popover";
+import { useLiveComments } from "./use-live-comments";
+import { usePointers } from "./use-pointers";
 
 const BRIDGE_TIMEOUT_MS = 3000;
 
@@ -25,11 +27,30 @@ function parseMessage(
   | { type: "anchor-picked"; anchor: HtmlPin; x: number; y: number }
   | { type: "pin-click"; id: number; x: number; y: number }
   | { type: "pin-close" }
+  | { type: "pointer"; anchor: HtmlPin }
   | null {
   if (typeof data !== "object" || data === null) return null;
   const d = data as Record<string, unknown>;
   if (d.type === "bridge-ready") return { type: "bridge-ready" };
   if (d.type === "pin-close") return { type: "pin-close" };
+  if (
+    d.type === "pointer" &&
+    typeof d.selector === "string" &&
+    d.selector.length >= 1 &&
+    d.selector.length <= 500 &&
+    isRel(d.relX) &&
+    isRel(d.relY)
+  ) {
+    return {
+      type: "pointer",
+      anchor: {
+        kind: "html",
+        selector: d.selector,
+        relX: d.relX,
+        relY: d.relY,
+      },
+    };
+  }
   if (
     d.type === "pin-click" &&
     typeof d.id === "number" &&
@@ -75,7 +96,7 @@ function parseMessage(
 export function HtmlViewer({
   src,
   token,
-  items,
+  items: initialItems,
   isOwner,
 }: {
   src: string;
@@ -84,6 +105,11 @@ export function HtmlViewer({
   isOwner: boolean;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { items, viewing } = useLiveComments(token, initialItems);
+  const { others, move } = usePointers(token, viewing);
+  // message 리스너는 한 번만 달리므로 최신 move를 ref로 읽는다.
+  const moveRef = useRef(move);
+  moveRef.current = move;
   const [listening, setListening] = useState(false);
   const [readySeq, setReadySeq] = useState(0);
   const bridgeReady = readySeq > 0;
@@ -137,6 +163,8 @@ export function HtmlViewer({
       else if (msg.type === "pin-close") {
         setOpen(null);
         setPending(null);
+      } else if (msg.type === "pointer") {
+        moveRef.current(msg.anchor);
       } else if (msg.type === "pin-click") {
         setPending(null);
         setOpen({
@@ -181,6 +209,28 @@ export function HtmlViewer({
         "*",
       );
   }, [readySeq, pins]);
+
+  useEffect(() => {
+    if (readySeq > 0)
+      iframeRef.current?.contentWindow?.postMessage(
+        {
+          type: "render-pointers",
+          pointers: others.flatMap((o) =>
+            o.anchor.kind === "html"
+              ? [
+                  {
+                    id: o.id,
+                    selector: o.anchor.selector,
+                    relX: o.anchor.relX,
+                    relY: o.anchor.relY,
+                  },
+                ]
+              : [],
+          ),
+        },
+        "*",
+      );
+  }, [readySeq, others]);
 
   useEffect(() => {
     if (readySeq > 0)
@@ -270,7 +320,12 @@ export function HtmlViewer({
           ) : null}
         </div>
       </section>
-      <CommentPanel items={items} isOwner={isOwner} onSelect={scrollToPin} />
+      <CommentPanel
+        items={items}
+        isOwner={isOwner}
+        viewing={viewing}
+        onSelect={scrollToPin}
+      />
     </>
   );
 }

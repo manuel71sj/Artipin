@@ -3,82 +3,54 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments } from "@/db/schema";
+import { type Anchor, isRecord, parseAnchor } from "@/lib/anchor";
+import { loadComments } from "@/lib/comments";
 import { findViewableFile } from "@/lib/shared-file";
-import { PDF_MAX_PAGES } from "@/lib/upload";
-import { getVisitorId } from "@/lib/visitor";
+import { getVisitorId, readVisitorId } from "@/lib/visitor";
 
 const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
 
-const isUnit = (v: unknown): v is number =>
-  typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1;
+// 단일 인스턴스 전제: 프로세스 메모리 상태다. 다중 인스턴스로 가거나 재시작하면 "지금 보는 중" 숫자가 틀어진다.
+// 파일 id → (방문자 id → 마지막 폴링 시각). 폴링이 heartbeat를 겸한다.
+const seen = new Map<number, Map<string, number>>();
+// 폴링 주기(15초) × 2 + 5초. 한 번 놓친 heartbeat로 빠지지 않는다.
+const SEEN_TTL_MS = 35_000;
 
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ token: string }> },
+) {
+  const { token } = await params;
+  const found = await findViewableFile(token);
+  if (found.status !== "ok")
+    return NextResponse.json(
+      { error: "파일을 찾을 수 없습니다." },
+      { status: 404 },
+    );
+  const { file } = found;
 
-type Anchor =
-  | { kind: "image"; x: number; y: number }
-  | { kind: "pdf"; page: number; x: number; y: number }
-  | {
-      kind: "html";
-      selector: string;
-      relX: number;
-      relY: number;
-      quote?: string;
-    };
+  const session = await auth();
+  const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
+  // 방문자 쿠키는 조회 기록(/view)만 발급한다. 첫 방문에서 두 요청이 동시에 발급해 한 사람이 둘로 세지지 않게 한다.
+  const visitorId = await readVisitorId();
+  const { items } = await loadComments(
+    file.id,
+    (v) => isOwner || v === visitorId,
+  );
 
-// 파일 종류와 일치하는 앵커만 허용하고, 알려진 키만 뽑아 돌려준다.
-function parseAnchor(
-  raw: unknown,
-  fileKind: "image" | "html" | "pdf",
-): { anchor: Anchor } | { error: string } {
-  if (!isRecord(raw)) return { error: "anchor 형식이 올바르지 않습니다." };
-  if (raw.kind !== "image" && raw.kind !== "html" && raw.kind !== "pdf")
-    return { error: "anchor.kind가 올바르지 않습니다." };
-  if (raw.kind !== fileKind)
-    return { error: "anchor.kind가 파일 종류와 맞지 않습니다." };
-
-  if (raw.kind === "image") {
-    if (!isUnit(raw.x) || !isUnit(raw.y))
-      return { error: "anchor 좌표는 0~1 사이 숫자여야 합니다." };
-    return { anchor: { kind: "image", x: raw.x, y: raw.y } };
+  // heartbeat를 기록하고, 같은 요청에서 모든 파일의 만료 항목을 지워 크기를 "최근 보는 사람"에 묶는다.
+  // 쿠키가 아직 없으면(조회 기록 응답 전) 세지 않는다.
+  const now = Date.now();
+  const mine = seen.get(file.id) ?? new Map<string, number>();
+  if (visitorId) mine.set(visitorId, now);
+  seen.set(file.id, mine);
+  for (const [fileId, visitors] of seen) {
+    for (const [v, at] of visitors) {
+      if (now - at > SEEN_TTL_MS) visitors.delete(v);
+    }
+    if (visitors.size === 0) seen.delete(fileId);
   }
-  if (raw.kind === "pdf") {
-    if (
-      !Number.isInteger(raw.page) ||
-      (raw.page as number) < 1 ||
-      (raw.page as number) > PDF_MAX_PAGES
-    )
-      return { error: `anchor.page는 1~${PDF_MAX_PAGES} 정수여야 합니다.` };
-    if (!isUnit(raw.x) || !isUnit(raw.y))
-      return { error: "anchor 좌표는 0~1 사이 숫자여야 합니다." };
-    return {
-      anchor: { kind: "pdf", page: raw.page as number, x: raw.x, y: raw.y },
-    };
-  }
-  if (
-    typeof raw.selector !== "string" ||
-    raw.selector.length < 1 ||
-    raw.selector.length > 500
-  )
-    return { error: "anchor.selector는 1~500자 문자열이어야 합니다." };
-  if (!isUnit(raw.relX) || !isUnit(raw.relY))
-    return { error: "anchor 좌표는 0~1 사이 숫자여야 합니다." };
-  if (
-    raw.quote !== undefined &&
-    (typeof raw.quote !== "string" ||
-      raw.quote.length < 1 ||
-      raw.quote.length > 300)
-  )
-    return { error: "anchor.quote는 1~300자 문자열이어야 합니다." };
-  return {
-    anchor: {
-      kind: "html",
-      selector: raw.selector,
-      relX: raw.relX,
-      relY: raw.relY,
-      ...(typeof raw.quote === "string" ? { quote: raw.quote } : {}),
-    },
-  };
+  return NextResponse.json({ items, viewing: mine.size });
 }
 
 export async function POST(

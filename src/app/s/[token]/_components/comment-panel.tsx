@@ -92,10 +92,12 @@ const FILTERS: { value: Filter; label: string }[] = [
 export function CommentPanel({
   items,
   isOwner,
+  viewing,
   onSelect,
 }: {
   items: CommentItem[];
   isOwner: boolean;
+  viewing: number | null;
   onSelect: (c: CommentItem) => void;
 }) {
   const router = useRouter();
@@ -137,6 +139,9 @@ export function CommentPanel({
         <span className="comments-count">
           미해결 {openCount} / 전체 {items.length}
         </span>
+        {viewing !== null && viewing >= 2 ? (
+          <span className="comments-count">지금 {viewing}명 보는 중</span>
+        ) : null}
         <div className="comments-filter">
           {FILTERS.map((f) => (
             <button
