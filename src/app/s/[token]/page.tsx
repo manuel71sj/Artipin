@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { preconnect } from "react-dom";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { comments, files, fileVersions } from "@/db/schema";
+import { comments, files, fileVersions, views } from "@/db/schema";
 import { contentOrigin } from "@/lib/hosts";
 import { relativeTime } from "@/lib/time";
 import { readVisitorId } from "@/lib/visitor";
@@ -49,6 +49,20 @@ export default async function SharePage({
     .from(comments)
     .where(eq(comments.fileId, file.id))
     .orderBy(asc(comments.createdAt), asc(comments.id));
+
+  // 열람자는 소유자에게만 조회·렌더한다. 익명이라 같은 방문자의 첫 댓글 작성자 이름을 쓴다.
+  const viewers = isOwner
+    ? await db
+        .select()
+        .from(views)
+        .where(eq(views.fileId, file.id))
+        .orderBy(asc(views.firstSeenAt))
+    : [];
+  const viewerNames = new Map<string, string>();
+  for (const c of rows) {
+    if (!viewerNames.has(c.visitorId))
+      viewerNames.set(c.visitorId, c.authorName);
+  }
 
   let pinNo = 0;
   const items: CommentItem[] = rows
@@ -141,6 +155,23 @@ export default async function SharePage({
             current: i === 0,
           }))}
         />
+      ) : null}
+      {isOwner ? (
+        <details className="share-views">
+          <summary>
+            열람 {viewers.length}명
+            {viewers[0] &&
+              ` · 처음 열람 ${relativeTime(viewers[0].firstSeenAt)}`}
+          </summary>
+          <ul>
+            {viewers.map((v) => (
+              <li key={v.visitorId}>
+                <span>{viewerNames.get(v.visitorId) ?? "익명 방문자"}</span>
+                <span>{relativeTime(v.firstSeenAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </>
   );

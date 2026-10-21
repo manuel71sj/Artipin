@@ -230,23 +230,27 @@ label,
   font-variant-numeric: tabular-nums;
 }
 
-/* 소유자 전용 버전 목록. 제목 줄 아래에 접어 둔다 */
-.share-versions {
+/* 소유자 전용 버전 목록·열람자 목록. 제목 줄 아래에 접어 둔다 */
+.share-versions,
+.share-views {
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-card);
   font-size: var(--text-sm);
 }
 
-.share-versions summary {
+.share-versions summary,
+.share-views summary {
   cursor: pointer;
 }
 
-.share-versions ul {
+.share-versions ul,
+.share-views ul {
   margin-top: var(--space-2);
 }
 
-.share-versions li {
+.share-versions li,
+.share-views li {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

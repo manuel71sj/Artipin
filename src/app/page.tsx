@@ -2,7 +2,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { db } from "@/db";
-import { comments, files } from "@/db/schema";
+import { comments, files, views } from "@/db/schema";
 import { relativeTime } from "@/lib/time";
 import { FileActions } from "./_components/file-actions";
 import { UploadForm } from "./_components/upload-form";
@@ -24,6 +24,11 @@ export default async function Home() {
       open: sql<number>`count(case when ${comments.id} is not null and ${comments.parentId} is null and ${comments.resolvedAt} is null then 1 end)`.mapWith(
         Number,
       ),
+      // 댓글 left join에 views를 더 join하면 댓글 수만큼 곱해지므로 상관 서브쿼리로 센다.
+      views:
+        sql<number>`(select count(*) from ${views} where ${views.fileId} = ${files.id})`.mapWith(
+          Number,
+        ),
     })
     .from(files)
     .leftJoin(comments, eq(comments.fileId, files.id))
@@ -89,6 +94,7 @@ export default async function Home() {
                     </span>
                   )}
                 </span>
+                <span className={styles.views}>열람 {f.views}명</span>
                 <span className={styles.when}>
                   {f.replacedAt
                     ? `교체됨 · ${relativeTime(f.replacedAt)}`
