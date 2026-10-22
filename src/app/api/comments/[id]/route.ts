@@ -9,7 +9,7 @@ import { readVisitorId } from "@/lib/visitor";
 const fail = (error: string, status: number) =>
   NextResponse.json({ error }, { status });
 
-// 파일 소유자 세션은 모든 댓글을, 방문자는 쿠키가 작성 당시 visitor_id와 같은 본인 댓글만 지운다.
+// 파일 소유자(팀 파일이면 팀 멤버) 세션은 모든 댓글을, 방문자는 쿠키가 작성 당시 visitor_id와 같은 본인 댓글만 지운다.
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -17,7 +17,11 @@ export async function DELETE(
   const { id } = await params;
   const commentId = Number(id);
   const [row] = await db
-    .select({ visitorId: comments.visitorId, ownerId: files.ownerId })
+    .select({
+      visitorId: comments.visitorId,
+      ownerId: files.ownerId,
+      teamId: files.teamId,
+    })
     .from(comments)
     .innerJoin(files, eq(files.id, comments.fileId))
     .where(and(eq(comments.id, commentId), isNull(files.deletedAt)));

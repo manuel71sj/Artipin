@@ -75,6 +75,7 @@ export async function setUnlockCookie(file: {
 export async function isUnlocked(file: {
   id: number;
   ownerId: number;
+  teamId: number | null;
   passwordHash: string | null;
 }): Promise<boolean> {
   if (file.passwordHash === null) return true;

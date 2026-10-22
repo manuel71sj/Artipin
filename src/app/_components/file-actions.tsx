@@ -17,6 +17,9 @@ type ExpireState = "idle" | "saving" | "failed";
 // 비밀번호 설정·변경은 입력을 받아 저장한다. 해제는 입력 없이 바로 요청한다.
 type PasswordState = "idle" | "editing" | "saving" | "failed";
 
+// 팀으로 옮기기·개인으로 되돌리기는 확인 없이 즉시 요청한다. 실패 표시는 role="alert" 문구로만 한다.
+type MoveState = "idle" | "saving" | "failed";
+
 // 보기 전용 링크 만들기·끊기는 확인 없이 즉시 요청한다(비밀번호 해제와 같다). 실패 표시는 role="alert" 문구로만 한다.
 type ViewLinkState = "idle" | "saving" | "failed";
 
@@ -32,6 +35,8 @@ export function FileActions({
   viewPath,
   hasPassword,
   encrypted,
+  teamId,
+  teams,
 }: {
   id: number;
   path: string;
@@ -39,11 +44,15 @@ export function FileActions({
   hasPassword: boolean;
   // 암호화 파일은 키가 업로드 직후 한 번만 보이므로, 키 없는 링크를 만드는 복사·새로 만들기·보기 전용 링크와 평문 교체를 숨긴다.
   encrypted: boolean;
+  // 팀 파일이면 그 팀의 id. 소속 팀(teams)이 있으면 개인 파일을 그 팀으로 옮길 수 있다.
+  teamId: number | null;
+  teams: { id: number; name: string }[];
 }) {
   const router = useRouter();
   const [copy, setCopy] = useState<CopyState>("idle");
   const [viewCopy, setViewCopy] = useState<CopyState>("idle");
   const [viewLink, setViewLink] = useState<ViewLinkState>("idle");
+  const [move, setMove] = useState<MoveState>("idle");
   const [del, setDel] = useState<DeleteState>("idle");
   const [replace, setReplace] = useState<ReplaceState>("idle");
   const [reissue, setReissue] = useState<ReissueState>("idle");
@@ -99,6 +108,20 @@ export function FileActions({
       setViewLink("idle");
       router.refresh();
     } else setViewLink("failed");
+  }
+
+  // teamId가 null이면 개인 파일로 되돌린다.
+  async function moveTo(target: number | null) {
+    setMove("saving");
+    const res = await fetch(`/api/files/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teamId: target }),
+    }).catch(() => null);
+    if (res?.ok) {
+      setMove("idle");
+      router.refresh();
+    } else setMove("failed");
   }
 
   async function remove() {
@@ -306,6 +329,29 @@ export function FileActions({
           ) : null}
         </>
       )}
+      {confirming || replacing || reissuing || editingPw ? null : teamId !==
+        null ? (
+        <button
+          type="button"
+          className={styles.remove}
+          disabled={move === "saving"}
+          onClick={() => moveTo(null)}
+        >
+          개인으로 되돌리기
+        </button>
+      ) : (
+        teams.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={styles.remove}
+            disabled={move === "saving"}
+            onClick={() => moveTo(t.id)}
+          >
+            팀으로 옮기기: {t.name}
+          </button>
+        ))
+      )}
       {confirming || replacing || editingPw || encrypted ? null : (
         <button
           ref={reissueRef}
@@ -409,6 +455,11 @@ export function FileActions({
         >
           취소
         </button>
+      ) : null}
+      {move === "failed" ? (
+        <span role="alert" className="sr-only">
+          파일을 옮기지 못했습니다
+        </span>
       ) : null}
       {del === "failed" ? (
         <span role="alert" className="sr-only">

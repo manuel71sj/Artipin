@@ -57,6 +57,13 @@
       "when": 1792629495319,
       "tag": "0007_faithful_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792630844490,
+      "tag": "0008_green_shen",
+      "breakpoints": true
     }
   ]
 }

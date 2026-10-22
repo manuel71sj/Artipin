@@ -43,12 +43,13 @@ pnpm metrics                          # scripts/metrics.sql 지표 출력
 ### 인증 (`src/auth.ts`)
 - Auth.js(next-auth 5 beta) JWT 세션. 제공자는 Google·GitHub, 도메인 제한 없음.
 - 소유자는 `owners(provider, provider_account_id)` 유일 키로 식별한다. email은 표시용이며 식별·병합에 쓰지 않는다(미검증 email로 다른 소유자 행을 차지하는 경로를 막기 위해).
+- 관리 권한(소유자처럼 다루기) 판정은 `src/lib/access.ts`의 `canManage`(행 값)·`manageable`(SQL 조건) 한 곳에서 한다: 본인이 올린 파일이거나 `files.team_id`의 팀 멤버. 호출부에 `ownerId` 비교를 다시 쓰지 않는다.
 - jwt 콜백이 로그인 시 owners를 upsert하고 `token.id = String(owners.id)`. 모든 호출부는 `session.user.id`(문자열)를 `Number()`로 owners.id와 비교한다. 세션은 DB와 대조하지 않으므로 owners 테이블을 재생성해 id가 재사용되면 `AUTH_SECRET`을 교체해야 한다.
 - 개발 전용 `dev-login` 제공자는 `process.env.NODE_ENV === "development"` 직접 비교로만 켠다. `next build`가 이 식을 `"production"`으로 인라인해 운영 산출물에서 빠진다. 런타임 env 플래그로 바꾸지 않는다.
 
 ### 데이터 (`src/db`)
 - SQLite(better-sqlite3, WAL, `foreign_keys=ON`) + Drizzle. DB와 `uploads/`는 `DATA_DIR`(기본 `./data`, 컨테이너 `/data`).
-- 테이블: `owners`, `files`(share_token, soft delete `deleted_at`), `comments`(parent로 답글, anchor JSON, resolved_at), `views`(file, visitor_id 복합 PK).
+- 테이블: `owners`, `files`(share_token, soft delete `deleted_at`), `comments`(parent로 답글, anchor JSON, resolved_at), `views`(file, visitor_id 복합 PK), `teams`(`invite_code`는 재발급 시 덮어쓴다)·`team_members`(team, owner 복합 PK), `files.team_id`(null이면 개인 파일).
 - 마이그레이션은 기동 시 `src/instrumentation.ts`가 `./drizzle`을 적용한다. 그래서 `pnpm dev`/`start`/컨테이너 기동만으로 실제 DB가 바뀐다 — 새 마이그레이션은 DB 사본(`sqlite3 data/app.db ".backup '<dir>/app.db'"` 후 `DATA_DIR=<dir> pnpm db:migrate`)으로 먼저 검증한다.
 - drizzle 마이그레이터는 파일 해시가 아니라 `_journal.json`의 시각(created_at)으로 적용 여부를 정하고, 전체를 트랜잭션 안에서 돌린다(그 안에서 `PRAGMA foreign_keys`는 무효). 기존 마이그레이션을 지우고 재생성하지 말고, `db:generate` 결과 SQL은 반드시 읽고 필요하면 손질한다(SQLite 테이블 재생성 시 `INSERT … SELECT`·`ADD COLUMN … NOT NULL`이 실패할 수 있다).
 - 실행 중인 `app.db`는 `cp`로 복사하지 않는다(WAL). 호스트 sqlite3와 컨테이너가 같은 DB를 동시에 열지 않는다.

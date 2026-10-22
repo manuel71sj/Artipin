@@ -27,6 +27,28 @@ export const owners = sqliteTable(
   ],
 );
 
+export const teams = sqliteTable("teams", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  // 초대 링크 코드. 재발급하면 덮어써서 이전 링크가 끊긴다.
+  inviteCode: text("invite_code").unique(),
+  createdAt: integer("created_at").notNull().default(now),
+});
+
+export const teamMembers = sqliteTable(
+  "team_members",
+  {
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id),
+    ownerId: integer("owner_id")
+      .notNull()
+      .references(() => owners.id),
+    joinedAt: integer("joined_at").notNull().default(now),
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.ownerId] })],
+);
+
 export const files = sqliteTable("files", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerId: integer("owner_id")
@@ -48,6 +70,8 @@ export const files = sqliteTable("files", {
   passwordHash: text("password_hash"),
   // 종단간 암호화 파일. 저장 본문이 암호문이라 서버는 형식 판정·변환·브리지 주입을 하지 않는다.
   encrypted: integer("encrypted", { mode: "boolean" }).notNull().default(false),
+  // 팀 파일이면 그 팀의 멤버가 소유자처럼 다룬다. null이면 올린 사람만(owner_id)의 개인 파일.
+  teamId: integer("team_id").references(() => teams.id),
 });
 
 export const fileVersions = sqliteTable(

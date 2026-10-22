@@ -28,7 +28,11 @@ export async function POST(
 
   const { id } = await params;
   const [comment] = await db
-    .select({ parentId: comments.parentId, ownerId: files.ownerId })
+    .select({
+      parentId: comments.parentId,
+      ownerId: files.ownerId,
+      teamId: files.teamId,
+    })
     .from(comments)
     .innerJoin(files, eq(files.id, comments.fileId))
     .where(and(eq(comments.id, Number(id)), isNull(files.deletedAt)));

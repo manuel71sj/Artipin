@@ -242,6 +242,29 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 팀 파일 구역 머리말: 팀 만들기 입력 또는 팀별 초대 링크 버튼 */
+.teamPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.teamRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.teamName {
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
 .list {
   list-style: none;
 }

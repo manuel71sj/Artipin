@@ -1,9 +1,9 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
-import { manageable } from "@/lib/access";
+import { manageable, myTeams } from "@/lib/access";
 import { removeFile, saveUpload } from "@/lib/storage";
 import { hashPassword } from "@/lib/unlock";
 import { checkUpload } from "@/lib/upload";
@@ -106,12 +106,31 @@ export async function PUT(
       { status: 400 },
     );
 
-  // 새 파일을 먼저 저장하고 버전 행 추가와 행 갱신을 한 트랜잭션에 묶는다. 갱신 전까지는 이전 본문이 서빙된다.
+  // 새 파일을 먼저 저장하고 행 갱신과 버전 행 추가를 한 트랜잭션에 묶는다. 갱신 전까지는 이전 본문이 서빙된다.
   const saved = await saveUpload(check.kind, check.body);
   if (!saved.ok)
     return NextResponse.json({ error: saved.error }, { status: 400 });
   const { storagePath } = saved;
-  db.transaction((tx) => {
+  const replaced = db.transaction((tx) => {
+    // 조회 뒤 저장하는 동안 권한이 회수됐을 수 있으므로(팀 탈퇴·개인으로 되돌리기) 갱신에도 manageable을 건다. 0행이면 버전 행도 남기지 않는다.
+    const [updated] = tx
+      .update(files)
+      .set({
+        storagePath,
+        size: check.body.length,
+        title: file.name,
+        replacedAt: Date.now(),
+      })
+      .where(
+        and(
+          eq(files.id, Number(id)),
+          manageable(Number(session.user.id)),
+          isNull(files.deletedAt),
+        ),
+      )
+      .returning({ id: files.id })
+      .all();
+    if (!updated) return false;
     tx.insert(fileVersions)
       .values({
         fileId: Number(id),
@@ -121,20 +140,19 @@ export async function PUT(
         title: file.name,
       })
       .run();
-    tx.update(files)
-      .set({
-        storagePath,
-        size: check.body.length,
-        title: file.name,
-        replacedAt: Date.now(),
-      })
-      .where(eq(files.id, Number(id)))
-      .run();
+    return true;
   });
+  if (!replaced) {
+    await removeFile(storagePath);
+    return NextResponse.json(
+      { error: "파일을 찾을 수 없습니다." },
+      { status: 404 },
+    );
+  }
   return new NextResponse(null, { status: 204 });
 }
 
-// 공개 링크 속성을 정한다. password(1~100자, null이면 해제)가 있으면 비밀번호를, 아니면 만료 시각을 정한다. 만료는 프리셋(1·7·30일)만 받고 null이면 없앤다.
+// 공개 링크 속성을 정한다. password(1~100자, null이면 해제)가 있으면 비밀번호를, teamId(정수 또는 null)가 있으면 소속 팀을, 아니면 만료 시각을 정한다. 만료는 프리셋(1·7·30일)만 받고 null이면 없앤다.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -170,6 +188,36 @@ export async function PATCH(
       .where(owned)
       .returning({ id: files.id });
     if (!changed)
+      return NextResponse.json(
+        { error: "파일을 찾을 수 없습니다." },
+        { status: 404 },
+      );
+    return new NextResponse(null, { status: 204 });
+  }
+
+  if (body?.teamId !== undefined) {
+    const teamId = body.teamId;
+    if (teamId !== null && !Number.isInteger(teamId))
+      return NextResponse.json(
+        { error: "teamId는 정수 또는 null이어야 합니다." },
+        { status: 400 },
+      );
+    // 관리할 수 있는 파일을 내가 속한 팀으로 옮기거나(null이면 개인으로) 되돌린다. 한 문장이라 원자적이다.
+    // 팀으로 옮기는 것은 개인 파일만이다. 개인 파일은 owned가 본인 파일만 통과시키므로, 팀원이 남의 팀 파일을 다른 팀으로 옮길 수 없다.
+    const [moved] = await db
+      .update(files)
+      .set({ teamId })
+      .where(
+        teamId === null
+          ? owned
+          : and(
+              owned,
+              isNull(files.teamId),
+              inArray(sql`${teamId}`, myTeams(Number(session.user.id))),
+            ),
+      )
+      .returning({ id: files.id });
+    if (!moved)
       return NextResponse.json(
         { error: "파일을 찾을 수 없습니다." },
         { status: 404 },

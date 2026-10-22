@@ -38,7 +38,21 @@ export async function POST(
     );
   if (!version) return fail("버전을 찾을 수 없습니다.", 404);
 
-  db.transaction((tx) => {
+  const rolledBack = db.transaction((tx) => {
+    // 조회와 이 갱신 사이에 권한이 회수됐을 수 있으므로 manageable을 다시 걸고, 0행이면 버전 행도 남기지 않는다.
+    const [updated] = tx
+      .update(files)
+      .set({ ...version, replacedAt: Date.now() })
+      .where(
+        and(
+          eq(files.id, Number(id)),
+          manageable(Number(session.user.id)),
+          isNull(files.deletedAt),
+        ),
+      )
+      .returning({ id: files.id })
+      .all();
+    if (!updated) return false;
     tx.insert(fileVersions)
       .values({
         fileId: Number(id),
@@ -46,10 +60,8 @@ export async function POST(
         ...version,
       })
       .run();
-    tx.update(files)
-      .set({ ...version, replacedAt: Date.now() })
-      .where(eq(files.id, Number(id)))
-      .run();
+    return true;
   });
+  if (!rolledBack) return fail("버전을 찾을 수 없습니다.", 404);
   return new NextResponse(null, { status: 204 });
 }
