@@ -1,10 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CommentItem, PendingPin, ReplyItem } from "./comment-panel";
 
 const NAME_KEY = "artipin:name";
+
+// 박스가 화면 좌우 밖으로 나가면 넘친 만큼 margin-left로 밀어 넣는다. 핀 위치·내용이 바뀔 때마다 다시 잰다.
+// 등장 모션의 scale이 폭을 줄이므로 폭은 offsetWidth로 재고, flip이면 오른쪽 끝을 기준으로 삼는다.
+function useKeepInViewport(ref: React.RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.marginLeft = "";
+    const rect = el.getBoundingClientRect();
+    const left = el.classList.contains("flip")
+      ? rect.right - el.offsetWidth
+      : rect.left;
+    const right = left + el.offsetWidth;
+    const max = document.documentElement.clientWidth - 8;
+    const dx = right > max ? max - right : left < 8 ? 8 - left : 0;
+    if (dx) el.style.marginLeft = `${dx}px`;
+  });
+}
 
 function Entry({
   c,
@@ -77,6 +95,7 @@ export function PinPopover({
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  useKeepInViewport(ref);
 
   useEffect(() => {
     setName(localStorage.getItem(NAME_KEY) ?? "");
@@ -247,6 +266,8 @@ export function NewCommentPopover({
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useKeepInViewport(ref);
 
   useEffect(() => {
     setName(localStorage.getItem(NAME_KEY) ?? "");
@@ -284,6 +305,7 @@ export function NewCommentPopover({
 
   return (
     <div
+      ref={ref}
       className={`pin-popover${flip ? " flip" : ""}`}
       style={{ left, top }}
       role="dialog"
