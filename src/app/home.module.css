@@ -515,6 +515,15 @@
   word-break: keep-all;
 }
 
+/* 교체·만료 설정 실패 문구: 원인을 알아야 다음 행동을 고를 수 있어 화면에 보인다 */
+.actionError {
+  max-width: 24em;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-destructive);
+  word-break: keep-all;
+}
+
 .copy:disabled,
 .remove:disabled,
 .confirm:disabled {

@@ -9,12 +9,12 @@ export function UnlockForm({ token }: { token: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [wrong, setWrong] = useState(false);
+  const [error, setError] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setWrong(false);
+    setError("");
     const res = await fetch(`/api/s/${token}/unlock`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -23,7 +23,14 @@ export function UnlockForm({ token }: { token: string }) {
     if (res?.ok) router.refresh();
     else {
       setBusy(false);
-      setWrong(true);
+      // 401만 비밀번호 오류다. 나머지를 비밀번호 탓으로 보이면 맞는 비밀번호를 계속 다시 넣게 된다.
+      setError(
+        res?.status === 401
+          ? "비밀번호가 맞지 않습니다"
+          : res?.status === 404
+            ? "열 수 없는 링크입니다. 만료되었거나 삭제되었을 수 있습니다"
+            : "연결하지 못했습니다. 잠시 후 다시 시도하세요",
+      );
     }
   }
 
@@ -44,9 +51,9 @@ export function UnlockForm({ token }: { token: string }) {
       <button type="submit" className={styles.button} disabled={busy}>
         열기
       </button>
-      {wrong ? (
+      {error ? (
         <span role="alert" className={styles.digest}>
-          비밀번호가 맞지 않습니다
+          {error}
         </span>
       ) : null}
     </form>

@@ -60,6 +60,8 @@ export function FileActions({
   const [pw, setPw] = useState<PasswordState>("idle");
   const [password, setPassword] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
+  // 교체 실패 원인(예: 다른 종류의 파일). 서버 문구가 없으면 일반 문구를 쓴다.
+  const [replaceError, setReplaceError] = useState("");
   // 연속으로 누르면 이전 타이머가 새 표시를 일찍 끄지 않도록 매번 취소한다.
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const removeRef = useRef<HTMLButtonElement>(null);
@@ -145,7 +147,13 @@ export function FileActions({
       setReplace("idle");
       setNewFile(null);
       router.refresh();
-    } else setReplace("failed");
+      return;
+    }
+    setReplaceError(
+      ((await res?.json().catch(() => null)) as { error?: string } | null)
+        ?.error ?? "교체하지 못했습니다. 잠시 후 다시 시도하세요.",
+    );
+    setReplace("failed");
   }
 
   // days가 ""이면 안내 항목이라 요청하지 않는다. "none"은 만료 없음이다.
@@ -200,8 +208,9 @@ export function FileActions({
     <div className={styles.actions}>
       {replacing ? (
         <span className={styles.replaceNote}>
-          이전 본문은 버전 기록에 남아 뷰어에서 되돌릴 수 있습니다. 댓글은
-          유지되며, 위치가 맞지 않는 핀은 목록에만 표시됩니다.
+          <strong>{newFile?.name}</strong>(으)로 교체합니다. 이전 본문은 버전
+          기록에 남아 뷰어에서 되돌릴 수 있습니다. 댓글은 유지되며, 위치가 맞지
+          않는 핀은 목록에만 표시됩니다.
         </span>
       ) : null}
       {reissuing ? (
@@ -476,8 +485,8 @@ export function FileActions({
         </span>
       ) : null}
       {expire === "failed" ? (
-        <span role="alert" className="sr-only">
-          기간을 설정하지 못했습니다
+        <span role="alert" className={styles.actionError}>
+          만료 기간을 설정하지 못했습니다. 다시 선택하세요.
         </span>
       ) : null}
       {pw === "failed" ? (
@@ -496,8 +505,8 @@ export function FileActions({
         </span>
       ) : null}
       {replace === "failed" ? (
-        <span role="alert" className="sr-only">
-          교체하지 못했습니다
+        <span role="alert" className={styles.actionError}>
+          {replaceError}
         </span>
       ) : null}
     </div>
