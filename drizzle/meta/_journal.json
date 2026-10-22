@@ -50,6 +50,13 @@
       "when": 1792628166674,
       "tag": "0006_productive_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792629495319,
+      "tag": "0007_faithful_bullseye",
+      "breakpoints": true
     }
   ]
 }

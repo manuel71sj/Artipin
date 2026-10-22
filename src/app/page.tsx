@@ -22,6 +22,7 @@ export default async function Home() {
       viewToken: files.viewToken,
       createdAt: files.createdAt,
       replacedAt: files.replacedAt,
+      encrypted: files.encrypted,
       expiresAt: files.expiresAt,
       // 해시 자체는 클라이언트로 내리지 않는다.
       hasPassword: sql<number>`${files.passwordHash} is not null`.mapWith(
@@ -98,6 +99,7 @@ export default async function Home() {
                       }[f.kind]
                     }
                   </span>
+                  {f.encrypted && <span className={styles.kind}>암호화</span>}
                   {f.expiresAt !== null &&
                     (f.expiresAt <= Date.now() ? (
                       <span className={styles.expiry} data-expired>
@@ -133,6 +135,7 @@ export default async function Home() {
                   path={`/s/${f.shareToken}`}
                   viewPath={f.viewToken ? `/s/${f.viewToken}` : null}
                   hasPassword={f.hasPassword}
+                  encrypted={f.encrypted}
                 />
               </li>
             ))}

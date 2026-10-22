@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db, uploadsDir } from "@/db";
 import { fileVersions } from "@/db/schema";
-import { injectBridge } from "@/lib/bridge";
+import { envelopeHtml, injectBridge } from "@/lib/bridge";
 import { appOrigin } from "@/lib/hosts";
 import { findViewableFile } from "@/lib/shared-file";
 import { readFile } from "@/lib/storage";
@@ -40,6 +40,21 @@ export async function GET(
     prefix += `/k/${all[1]}`;
   }
   const csp = `sandbox allow-scripts; connect-src 'none'; form-action 'none'; frame-ancestors ${appOrigin()}`;
+
+  // 암호화 파일은 저장 본문(암호문)을 읽지 않고 고정 봉투를 내준다. 평문은 뷰어가 복호화해 봉투로 넘긴다.
+  if (file.encrypted) {
+    if (file.kind !== "html" || v !== null || segs.length > 0)
+      return new NextResponse(null, { status: 404 });
+    return new NextResponse(envelopeHtml(), {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Security-Policy": csp,
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "Cache-Control": "no-cache",
+      },
+    });
+  }
 
   if (file.kind === "site") {
     // 이전 버전의 상대 자산이 현재 버전에서 읽혀 섞이므로 ?v=는 받지 않는다.

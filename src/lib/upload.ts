@@ -33,12 +33,12 @@ export const SITE_TYPES = new Map([
   ["otf", "font/otf"],
 ]);
 
-const startsWith = (buf: Buffer, bytes: number[], offset = 0) =>
+const startsWith = (buf: Uint8Array, bytes: number[], offset = 0) =>
   bytes.every((b, i) => buf[offset + i] === b);
 
 /** 본문 첫 바이트로 이미지 MIME을 판정한다. 이미지가 아니면 null. */
 export function imageMime(
-  buf: Buffer,
+  buf: Uint8Array,
 ): "image/png" | "image/jpeg" | "image/webp" | null {
   if (startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     return "image/png";
@@ -56,6 +56,25 @@ export type UploadCheck =
   | { ok: false; error: string };
 
 export const mb = (bytes: number) => `${bytes / 1024 / 1024}MB`;
+
+// 암호화 업로드 본문은 평문 앞뒤로 IV(12바이트)와 GCM 태그(16바이트)가 붙는다.
+const ENCRYPTION_OVERHEAD = 28;
+
+/** 암호화 업로드는 본문을 읽을 수 없으므로 클라이언트가 선언한 kind(html·image)와 크기만 본다. */
+export function checkEncryptedUpload(kind: unknown, data: Buffer): UploadCheck {
+  if (kind !== "html" && kind !== "image")
+    return {
+      ok: false,
+      error: "암호화 업로드는 HTML과 이미지만 지원합니다.",
+    };
+  const limit = kind === "image" ? IMAGE_MAX_BYTES : HTML_MAX_BYTES;
+  if (data.length > limit + ENCRYPTION_OVERHEAD)
+    return {
+      ok: false,
+      error: `${kind === "image" ? "이미지" : "HTML"}는 ${mb(limit)} 이하만 올릴 수 있습니다.`,
+    };
+  return { ok: true, kind, body: data };
+}
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

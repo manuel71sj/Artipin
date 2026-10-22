@@ -458,3 +458,37 @@ export function injectBridge(html: string): string {
   for (const m of html.matchAll(/<\/body\s*>/gi)) at = m.index;
   return html.slice(0, at) + BRIDGE_TAG + html.slice(at);
 }
+
+// 암호화 파일용 고정 봉투. 서버는 본문을 읽지 못하므로 부모(뷰어)가 복호화한 평문을 postMessage로 넘기고,
+// 봉투가 그 평문에 브리지를 붙여 문서를 교체한다. 키는 봉투에 오지 않는다(원칙은 위협 모델 문서 참조).
+// 소스 규칙은 BRIDGE와 같다: 닫는 script 태그 문자열, 백틱, 달러+중괄호를 넣지 않는다.
+// BRIDGE 소스는 문자열 상수로 내장하되 `<`를 유니코드 이스케이프로 바꿔 인라인 script 안에 닫는 태그나 주석 시작이 생기지 않게 한다.
+// IIFE로 감싸는 이유: document.open 뒤에도 같은 realm이라 최상위 선언이 업로드 문서의 최상위 let·const와 충돌한다.
+const ENVELOPE =
+  `(function () {
+  var bridge = ` +
+  JSON.stringify(BRIDGE).replace(/</g, "\\u003c") +
+  `;
+  window.addEventListener("message", function (e) {
+    if (e.source !== window.parent) return;
+    var d = e.data;
+    if (!d || d.type !== "envelope-html" || typeof d.html !== "string") return;
+    var html = d.html;
+    var at = html.length;
+    var re = /<\\/body\\s*>/gi;
+    var m;
+    while ((m = re.exec(html))) at = m.index;
+    var tag = "<scr" + "ipt>" + bridge + "</scr" + "ipt>";
+    document.open();
+    document.write(html.slice(0, at) + tag + html.slice(at));
+    document.close();
+  });
+  window.parent.postMessage({ type: "envelope-ready" }, "*");
+})();`;
+
+const ENVELOPE_HTML = `<!doctype html><meta charset="utf-8"><body><script>${ENVELOPE}</script>`;
+
+/** 암호화 HTML 파일의 /c/{token} 본문. 저장 본문과 무관한 고정 문서다. */
+export function envelopeHtml(): string {
+  return ENVELOPE_HTML;
+}

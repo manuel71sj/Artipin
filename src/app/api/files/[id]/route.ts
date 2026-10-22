@@ -79,7 +79,7 @@ export async function PUT(
 
   const { id } = await params;
   const [row] = await db
-    .select({ kind: files.kind })
+    .select({ kind: files.kind, encrypted: files.encrypted })
     .from(files)
     .where(
       and(
@@ -92,6 +92,11 @@ export async function PUT(
     return NextResponse.json(
       { error: "파일을 찾을 수 없습니다." },
       { status: 404 },
+    );
+  if (row.encrypted)
+    return NextResponse.json(
+      { error: "암호화 파일은 교체할 수 없습니다." },
+      { status: 400 },
     );
   // 이미지 앵커는 0~1 좌표, PDF 앵커는 페이지+좌표, HTML 앵커는 선택자라 종류가 바뀌면 기존 핀이 의미를 잃는다.
   if (check.kind !== row.kind)

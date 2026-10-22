@@ -31,11 +31,14 @@ export function FileActions({
   path,
   viewPath,
   hasPassword,
+  encrypted,
 }: {
   id: number;
   path: string;
   viewPath: string | null;
   hasPassword: boolean;
+  // 암호화 파일은 키가 업로드 직후 한 번만 보이므로, 키 없는 링크를 만드는 복사·새로 만들기·보기 전용 링크와 평문 교체를 숨긴다.
+  encrypted: boolean;
 }) {
   const router = useRouter();
   const [copy, setCopy] = useState<CopyState>("idle");
@@ -224,45 +227,49 @@ export function FileActions({
         </>
       ) : confirming || replacing || reissuing ? null : (
         <>
-          <button
-            type="button"
-            className={styles.copy}
-            data-state={copy}
-            aria-live="polite"
-            onClick={() => copyLink(path, setCopy)}
-          >
-            {COPY_LABEL[copy]}
-          </button>
-          {viewPath === null ? (
-            <button
-              type="button"
-              className={styles.remove}
-              disabled={viewLink === "saving"}
-              onClick={() => changeViewLink("POST")}
-            >
-              보기 전용 링크 만들기
-            </button>
-          ) : (
+          {encrypted ? null : (
             <>
               <button
                 type="button"
                 className={styles.copy}
-                data-state={viewCopy}
+                data-state={copy}
                 aria-live="polite"
-                onClick={() => copyLink(viewPath, setViewCopy)}
+                onClick={() => copyLink(path, setCopy)}
               >
-                {viewCopy === "idle"
-                  ? "보기 전용 링크 복사"
-                  : COPY_LABEL[viewCopy]}
+                {COPY_LABEL[copy]}
               </button>
-              <button
-                type="button"
-                className={styles.remove}
-                disabled={viewLink === "saving"}
-                onClick={() => changeViewLink("DELETE")}
-              >
-                보기 전용 링크 끊기
-              </button>
+              {viewPath === null ? (
+                <button
+                  type="button"
+                  className={styles.remove}
+                  disabled={viewLink === "saving"}
+                  onClick={() => changeViewLink("POST")}
+                >
+                  보기 전용 링크 만들기
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={styles.copy}
+                    data-state={viewCopy}
+                    aria-live="polite"
+                    onClick={() => copyLink(viewPath, setViewCopy)}
+                  >
+                    {viewCopy === "idle"
+                      ? "보기 전용 링크 복사"
+                      : COPY_LABEL[viewCopy]}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.remove}
+                    disabled={viewLink === "saving"}
+                    onClick={() => changeViewLink("DELETE")}
+                  >
+                    보기 전용 링크 끊기
+                  </button>
+                </>
+              )}
             </>
           )}
           {/* 현재 값을 역산해 보여주지 않는 동작 전용 컨트롤이다. 요청이 끝나면 안내 항목으로 돌아간다. */}
@@ -299,7 +306,7 @@ export function FileActions({
           ) : null}
         </>
       )}
-      {confirming || replacing || editingPw ? null : (
+      {confirming || replacing || editingPw || encrypted ? null : (
         <button
           ref={reissueRef}
           type="button"
@@ -329,7 +336,7 @@ export function FileActions({
           취소
         </button>
       ) : null}
-      {confirming || reissuing || editingPw ? null : (
+      {confirming || reissuing || editingPw || encrypted ? null : (
         <>
           <input
             ref={inputRef}

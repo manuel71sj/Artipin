@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { encrypt } from "@/lib/e2ee";
+import { imageMime } from "@/lib/upload";
 import styles from "../home.module.css";
 
 export function UploadForm() {
@@ -13,16 +15,51 @@ export function UploadForm() {
   // 자식 요소를 지날 때마다 dragleave가 발생하므로 진입 횟수로 센다.
   const depth = useRef(0);
   const [html, setHtml] = useState("");
+  const [encrypted, setEncrypted] = useState(false);
+  // 암호화 업로드 직후의 키 포함 링크. 저장하지 않고 다음 업로드 전까지만 보여준다.
+  const [secretLink, setSecretLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   async function upload(file: File): Promise<boolean> {
     setBusy(true);
     setError(null);
     setDone(false);
+    setSecretLink(null);
     const body = new FormData();
-    body.set("file", file);
+    let key: string | null = null;
+    if (encrypted) {
+      // 서버는 암호문을 판정하지 못하므로 형식은 여기서 평문으로 판정해 kind로 보낸다.
+      const plain = new Uint8Array(await file.arrayBuffer());
+      let kind: "image" | "html";
+      if (imageMime(plain)) kind = "image";
+      else if (file.name.toLowerCase().endsWith(".html")) {
+        try {
+          new TextDecoder("utf-8", { fatal: true }).decode(plain);
+          kind = "html";
+        } catch {
+          setError("HTML 파일은 UTF-8 인코딩만 올릴 수 있습니다.");
+          setBusy(false);
+          return false;
+        }
+      } else {
+        setError("암호화 업로드는 HTML과 PNG·JPG·WebP 이미지만 지원합니다.");
+        setBusy(false);
+        return false;
+      }
+      const sealed = await encrypt(plain);
+      key = sealed.key;
+      body.set("file", new File([sealed.data], file.name));
+      body.set("encrypted", "1");
+      body.set("kind", kind);
+    } else body.set("file", file);
     const res = await fetch("/api/files", { method: "POST", body });
     if (res.ok) {
       setDone(true);
+      if (key) {
+        const { shareToken } = await res.json();
+        setSecretLink(`${location.origin}/s/${shareToken}#k=${key}`);
+        setLinkCopied(false);
+      }
       router.refresh();
     } else {
       const json = await res.json().catch(() => null);
@@ -65,7 +102,7 @@ export function UploadForm() {
         depth.current = 0;
         setDragging(false);
         const file = e.dataTransfer.files[0];
-        if (file) upload(file);
+        if (file && !busy) upload(file);
       }}
     >
       <div className={styles.strip}>
@@ -90,6 +127,15 @@ export function UploadForm() {
             ? "놓으면 바로 올립니다"
             : ".html·.md·.markdown·.json 5MB, 이미지(PNG·JPG·WebP) 10MB, PDF 20MB·50페이지 이하, .zip(index.html 포함) 20MB"}
         </span>
+        <label className={styles.hint}>
+          <input
+            type="checkbox"
+            checked={encrypted}
+            disabled={busy}
+            onChange={(e) => setEncrypted(e.target.checked)}
+          />{" "}
+          암호화해서 올리기 (HTML·이미지만, 링크의 키 없이는 서버도 열 수 없음)
+        </label>
         <span className={styles.hint}>
           {/* 루트 절대 경로(/assets/…) 빌드는 깨지므로 상대 경로로 내보내게 안내한다 */}
           zip은 빌드 결과를 상대 경로로 내보내세요(Vite는 base: "./").
@@ -117,6 +163,34 @@ export function UploadForm() {
           {busy ? "올리는 중…" : "링크 만들기"}
         </button>
       </details>
+
+      {secretLink ? (
+        <div className={styles.paste}>
+          <input
+            className={styles.pasteInput}
+            readOnly
+            value={secretLink}
+            aria-label="키가 포함된 링크"
+            onFocus={(e) => e.currentTarget.select()}
+          />
+          <button
+            type="button"
+            className={styles.copy}
+            data-state={linkCopied ? "copied" : "idle"}
+            onClick={() =>
+              navigator.clipboard.writeText(secretLink).then(
+                () => setLinkCopied(true),
+                () => setLinkCopied(false),
+              )
+            }
+          >
+            {linkCopied ? "복사했습니다" : "링크 복사"}
+          </button>
+          <p className={styles.hint}>
+            이 링크를 잃으면 다시 열 수 없습니다(서버는 키를 모릅니다).
+          </p>
+        </div>
+      ) : null}
 
       <output className="sr-only">
         {done ? "업로드했습니다. 아래 목록에 추가되었습니다." : ""}

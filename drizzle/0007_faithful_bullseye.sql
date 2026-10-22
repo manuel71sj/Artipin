@@ -1,0 +1,1 @@
+ALTER TABLE `files` ADD `encrypted` integer DEFAULT false NOT NULL;

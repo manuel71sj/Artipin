@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
 import { saveUpload } from "@/lib/storage";
-import { checkUpload } from "@/lib/upload";
+import { checkEncryptedUpload, checkUpload } from "@/lib/upload";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -15,8 +15,10 @@ export async function POST(request: Request) {
     );
 
   let file: FormDataEntryValue | null;
+  let form: FormData;
   try {
-    file = (await request.formData()).get("file");
+    form = await request.formData();
+    file = form.get("file");
   } catch {
     // proxyClientMaxBodySize를 넘으면 본문이 잘려 파싱에 실패한다.
     return NextResponse.json(
@@ -29,7 +31,11 @@ export async function POST(request: Request) {
   }
 
   const data = Buffer.from(await file.arrayBuffer());
-  const check = checkUpload(file.name, data);
+  // 암호화 업로드는 본문이 암호문이라 형식을 판정하지 못한다. 브라우저가 평문으로 판정한 kind와 크기만 본다.
+  const encrypted = form.get("encrypted") === "1";
+  const check = encrypted
+    ? checkEncryptedUpload(form.get("kind"), data)
+    : checkUpload(file.name, data);
   if (!check.ok)
     return NextResponse.json({ error: check.error }, { status: 400 });
 
@@ -49,6 +55,7 @@ export async function POST(request: Request) {
         storagePath,
         size: check.body.length,
         shareToken,
+        encrypted,
       })
       .returning({ id: files.id })
       .get();

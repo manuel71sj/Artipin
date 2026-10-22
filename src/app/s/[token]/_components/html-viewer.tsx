@@ -24,6 +24,7 @@ const isRel = (v: unknown): v is number =>
 function parseMessage(
   data: unknown,
 ):
+  | { type: "envelope-ready" }
   | { type: "bridge-ready"; path: string }
   | { type: "anchor-picked"; anchor: HtmlPin; x: number; y: number }
   | { type: "pin-click"; id: number; x: number; y: number }
@@ -39,6 +40,7 @@ function parseMessage(
     d.path.length <= 2000
   )
     return { type: "bridge-ready", path: d.path };
+  if (d.type === "envelope-ready") return { type: "envelope-ready" };
   if (d.type === "pin-close") return { type: "pin-close" };
   if (
     d.type === "pointer" &&
@@ -122,6 +124,7 @@ export function HtmlViewer({
   isOwner,
   entryPath,
   edit,
+  html,
 }: {
   src: string;
   token: string;
@@ -131,10 +134,14 @@ export function HtmlViewer({
   entryPath?: string;
   // 소유자의 단일 HTML 파일에만 준다. 있으면 본문 텍스트 편집 모드와 수정본 다운로드를 켠다.
   edit?: { fileId: number; title: string };
+  // 암호화 파일의 복호화된 본문. 있으면 src의 봉투 문서가 envelope-ready를 보낼 때 이 평문을 넘긴다.
+  html?: string;
 }) {
   // 비밀번호 파일은 렌더마다 주소의 티켓이 바뀐다. router.refresh()에 iframe이 다시 로드되거나 진입 판정이 어긋나지 않도록 마운트 때 고정한다.
-  const [frame] = useState({ src, entryPath });
+  const [frame] = useState({ src, entryPath, html });
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // 평문은 마운트당 한 번만 보낸다. iframe이 다른 곳으로 이동한 뒤 보내는 envelope-ready에는 응답하지 않는다.
+  const envelopeSent = useRef(false);
   const { items, viewing } = useLiveComments(token, initialItems);
   const { others, move } = usePointers(token, viewing);
   // message 리스너는 한 번만 달리므로 최신 move를 ref로 읽는다.
@@ -205,7 +212,14 @@ export function HtmlViewer({
       if (e.source !== iframeRef.current?.contentWindow) return;
       const msg = parseMessage(e.data);
       if (!msg) return;
-      if (msg.type === "bridge-ready") {
+      if (msg.type === "envelope-ready") {
+        if (frame.html === undefined || envelopeSent.current) return;
+        envelopeSent.current = true;
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "envelope-html", html: frame.html },
+          "*",
+        );
+      } else if (msg.type === "bridge-ready") {
         setPath(msg.path);
         setReadySeq((n) => n + 1);
       } else if (msg.type === "pin-close") {
@@ -248,7 +262,7 @@ export function HtmlViewer({
     window.addEventListener("message", onMessage);
     setListening(true);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [frame]);
 
   useEffect(() => {
     if (!loaded || path !== null) return;

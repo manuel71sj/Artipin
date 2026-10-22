@@ -15,6 +15,7 @@ import { contentTicket, isUnlocked } from "@/lib/unlock";
 import { readVisitorId } from "@/lib/visitor";
 import { StatusPage, statusStyles } from "../../_components/status-page";
 import { CopyLink } from "./_components/copy-link";
+import { EncryptedViewer } from "./_components/encrypted-viewer";
 import { HtmlViewer } from "./_components/html-viewer";
 import { ImageViewer } from "./_components/image-viewer";
 import { UnlockForm } from "./_components/unlock-form";
@@ -185,7 +186,7 @@ export default async function SharePage({
   const bar = (
     <>
       {head}
-      {isOwner ? (
+      {isOwner && !file.encrypted ? (
         <VersionList
           fileId={file.id}
           token={token}
@@ -219,6 +220,27 @@ export default async function SharePage({
       ) : null}
     </>
   );
+
+  // 암호화 파일(html·image)은 뷰어가 #k=의 키로 복호화한다. 버전 목록은 위 bar에서 숨겼다.
+  if (file.encrypted) {
+    return (
+      <>
+        {bar}
+        <main id="main" className="share">
+          <ViewBeacon token={token} />
+          <EncryptedViewer
+            key={file.storagePath + lockKey}
+            kind={file.kind === "image" ? "image" : "html"}
+            src={`${contentOrigin()}${prefix}`}
+            title={file.title}
+            token={token}
+            items={items}
+            isOwner={isOwner}
+          />
+        </main>
+      </>
+    );
+  }
 
   if (file.kind === "html" || file.kind === "site") {
     return (

@@ -46,6 +46,8 @@ export const files = sqliteTable("files", {
   expiresAt: integer("expires_at"),
   // 링크 비밀번호. scrypt 결과를 "salt:hash"(hex)로 저장한다. null이면 비밀번호 없음.
   passwordHash: text("password_hash"),
+  // 종단간 암호화 파일. 저장 본문이 암호문이라 서버는 형식 판정·변환·브리지 주입을 하지 않는다.
+  encrypted: integer("encrypted", { mode: "boolean" }).notNull().default(false),
 });
 
 export const fileVersions = sqliteTable(
