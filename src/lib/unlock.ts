@@ -2,6 +2,7 @@ import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
+import { canManage } from "@/lib/access";
 import { appOrigin } from "@/lib/hosts";
 
 const scryptAsync = promisify(scrypt);
@@ -79,7 +80,7 @@ export async function isUnlocked(file: {
   if (file.passwordHash === null) return true;
   const salt = saltOf(file.passwordHash);
   const session = await auth();
-  if (session && Number(session.user.id) === file.ownerId) return true;
+  if (await canManage(session, file)) return true;
   const value = (await cookies()).get(cookieName(file.id))?.value;
   return verifySigned(value, (exp) => `unlock|${file.id}|${salt}|${exp}`);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { views } from "@/db/schema";
+import { canManage } from "@/lib/access";
 import { findViewableFile } from "@/lib/shared-file";
 import { isUnlocked } from "@/lib/unlock";
 import { getVisitorId } from "@/lib/visitor";
@@ -28,7 +29,7 @@ export async function POST(
   // 소유자도 방문자 쿠키는 받는다(접속자 수는 이 쿠키로 센다). 조회 기록만 남기지 않는다.
   const visitorId = await getVisitorId();
   const session = await auth();
-  if (session && Number(session.user.id) === file.ownerId)
+  if (await canManage(session, file))
     return new NextResponse(null, { status: 204 });
 
   await db

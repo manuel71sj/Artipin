@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files } from "@/db/schema";
+import { manageable } from "@/lib/access";
 import { readFile } from "@/lib/storage";
 
 // 소유자가 단일 HTML의 저장 본문(브리지 주입 전)을 내려받는다. 수정본 다운로드가 부모에서 이 소스를 파싱한다.
@@ -23,7 +24,7 @@ export async function GET(
     .where(
       and(
         eq(files.id, Number(id)),
-        eq(files.ownerId, Number(session.user.id)),
+        manageable(Number(session.user.id)),
         eq(files.kind, "html"),
         isNull(files.deletedAt),
       ),

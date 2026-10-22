@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
+import { manageable } from "@/lib/access";
 import { removeFile, saveUpload } from "@/lib/storage";
 import { hashPassword } from "@/lib/unlock";
 import { checkUpload } from "@/lib/upload";
@@ -26,7 +27,7 @@ export async function DELETE(
     .where(
       and(
         eq(files.id, Number(id)),
-        eq(files.ownerId, Number(session.user.id)),
+        manageable(Number(session.user.id)),
         isNull(files.deletedAt),
       ),
     )
@@ -84,7 +85,7 @@ export async function PUT(
     .where(
       and(
         eq(files.id, Number(id)),
-        eq(files.ownerId, Number(session.user.id)),
+        manageable(Number(session.user.id)),
         isNull(files.deletedAt),
       ),
     );
@@ -149,7 +150,7 @@ export async function PATCH(
   const { id } = await params;
   const owned = and(
     eq(files.id, Number(id)),
-    eq(files.ownerId, Number(session.user.id)),
+    manageable(Number(session.user.id)),
     isNull(files.deletedAt),
   );
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
+import { canManage } from "@/lib/access";
 import { readVisitorId } from "@/lib/visitor";
 
 const fail = (error: string, status: number) =>
@@ -25,7 +26,7 @@ export async function DELETE(
   const session = await auth();
   const cookieId = await readVisitorId();
   const allowed =
-    (session && Number(session.user.id) === row.ownerId) ||
+    (await canManage(session, row)) ||
     (cookieId !== null && cookieId === row.visitorId);
   if (!allowed) return fail("권한이 없습니다.", 403);
 

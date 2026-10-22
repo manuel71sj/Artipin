@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
+import { canManage } from "@/lib/access";
 
 const fail = (error: string, status: number) =>
   NextResponse.json({ error }, { status });
@@ -32,7 +33,7 @@ export async function POST(
     .innerJoin(files, eq(files.id, comments.fileId))
     .where(and(eq(comments.id, Number(id)), isNull(files.deletedAt)));
   if (!comment) return fail("댓글을 찾을 수 없습니다.", 404);
-  if (comment.ownerId !== Number(session.user.id))
+  if (!(await canManage(session, comment)))
     return fail("권한이 없습니다.", 403);
   if (comment.parentId !== null)
     return fail("답글은 해결 처리할 수 없습니다.", 400);

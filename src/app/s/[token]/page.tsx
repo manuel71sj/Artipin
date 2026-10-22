@@ -6,6 +6,7 @@ import { preconnect } from "react-dom";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { fileVersions, views } from "@/db/schema";
+import { canManage } from "@/lib/access";
 import { loadComments } from "@/lib/comments";
 import { contentOrigin } from "@/lib/hosts";
 import { findViewableFile } from "@/lib/shared-file";
@@ -153,7 +154,7 @@ export default async function SharePage({
     : "";
 
   const session = await auth();
-  const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
+  const isOwner = await canManage(session, file);
   // 쿠키가 httpOnly라 삭제 가능 여부는 서버에서 계산한다.
   const visitorId = await readVisitorId();
   const can = (v: string) => isOwner || (visitorId !== null && v === visitorId);

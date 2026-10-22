@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
+import { manageable } from "@/lib/access";
 
 const fail = (error: string, status: number) =>
   NextResponse.json({ error }, { status });
@@ -30,7 +31,7 @@ export async function POST(
     .where(
       and(
         eq(files.id, Number(id)),
-        eq(files.ownerId, Number(session.user.id)),
+        manageable(Number(session.user.id)),
         isNull(files.deletedAt),
         eq(fileVersions.no, no as number),
       ),

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments } from "@/db/schema";
+import { canManage } from "@/lib/access";
 import { type Anchor, isRecord, parseAnchor } from "@/lib/anchor";
 import { loadComments } from "@/lib/comments";
 import { findViewableFile } from "@/lib/shared-file";
@@ -36,7 +37,7 @@ export async function GET(
     );
 
   const session = await auth();
-  const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
+  const isOwner = await canManage(session, file);
   // 방문자 쿠키는 조회 기록(/view)만 발급한다. 첫 방문에서 두 요청이 동시에 발급해 한 사람이 둘로 세지지 않게 한다.
   const visitorId = await readVisitorId();
   const { items } = await loadComments(
@@ -121,7 +122,7 @@ export async function POST(
   }
 
   const session = await auth();
-  const isOwner = Boolean(session) && Number(session?.user.id) === file.ownerId;
+  const isOwner = await canManage(session, file);
   const visitorId = await getVisitorId();
 
   const [created] = await db

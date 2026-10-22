@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { comments, files, views } from "@/db/schema";
+import { manageable } from "@/lib/access";
 import { relativeTime } from "@/lib/time";
 import { FileActions } from "./_components/file-actions";
 import { UploadForm } from "./_components/upload-form";
@@ -39,9 +40,7 @@ export default async function Home() {
     })
     .from(files)
     .leftJoin(comments, eq(comments.fileId, files.id))
-    .where(
-      and(eq(files.ownerId, Number(session.user.id)), isNull(files.deletedAt)),
-    )
+    .where(and(manageable(Number(session.user.id)), isNull(files.deletedAt)))
     .groupBy(files.id)
     .orderBy(desc(files.createdAt), desc(files.id));
 

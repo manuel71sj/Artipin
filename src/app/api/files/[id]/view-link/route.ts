@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { files } from "@/db/schema";
+import { manageable } from "@/lib/access";
 
 // 보기 전용 링크(view_token)를 만들거나 끊는다. 댓글 링크(share_token)는 건드리지 않는다.
 // 결과 view_token을 돌려주고, 로그인·소유권이 맞지 않으면 오류 응답을 돌려준다.
@@ -25,7 +26,7 @@ async function setViewToken(
     .where(
       and(
         eq(files.id, Number(id)),
-        eq(files.ownerId, Number(session.user.id)),
+        manageable(Number(session.user.id)),
         isNull(files.deletedAt),
       ),
     )
