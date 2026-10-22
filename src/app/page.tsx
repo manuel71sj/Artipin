@@ -19,6 +19,7 @@ export default async function Home() {
       title: files.title,
       kind: files.kind,
       shareToken: files.shareToken,
+      viewToken: files.viewToken,
       createdAt: files.createdAt,
       replacedAt: files.replacedAt,
       expiresAt: files.expiresAt,
@@ -130,6 +131,7 @@ export default async function Home() {
                 <FileActions
                   id={f.id}
                   path={`/s/${f.shareToken}`}
+                  viewPath={f.viewToken ? `/s/${f.viewToken}` : null}
                   hasPassword={f.hasPassword}
                 />
               </li>

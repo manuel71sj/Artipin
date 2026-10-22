@@ -37,6 +37,8 @@ export const files = sqliteTable("files", {
   storagePath: text("storage_path").notNull(),
   size: integer("size").notNull(),
   shareToken: text("share_token").notNull().unique(),
+  // 보기 전용 링크 토큰. 소유자가 만들 때만 생기고(null이면 없음), 뷰어·콘텐츠·잠금 해제만 이 토큰을 받는다.
+  viewToken: text("view_token").unique(),
   createdAt: integer("created_at").notNull().default(now),
   deletedAt: integer("deleted_at"),
   replacedAt: integer("replaced_at"),

@@ -24,7 +24,7 @@ export async function GET(
   const v = request.nextUrl.searchParams.get("v");
   if (v !== null && !/^\d+$/.test(v))
     return new NextResponse(null, { status: 404 });
-  const found = await findViewableFile(token);
+  const found = await findViewableFile(token, true);
   if (found.status !== "ok") return new NextResponse(null, { status: 404 });
   const { file } = found;
   // 비밀번호 파일은 뷰어 렌더가 발급한 경로 티켓이 있어야 한다. 접두사 두 칸을 떼고 나머지를 기존대로 처리한다.

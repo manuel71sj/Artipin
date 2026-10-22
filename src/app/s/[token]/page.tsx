@@ -27,7 +27,7 @@ export default async function SharePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const found = await findViewableFile(token);
+  const found = await findViewableFile(token, true);
   if (found.status === "none") notFound();
   // 만료는 404와 구분해 안내한다(HTTP 200). 소유자도 예외 없이 이 화면을 본다.
   if (found.status === "expired")
@@ -62,6 +62,90 @@ export default async function SharePage({
   // 비밀번호 파일의 본문 주소는 이 렌더가 발급한 경로 티켓을 거친다(콘텐츠 라우트가 검증).
   const k = file.passwordHash ? contentTicket(token, file.passwordHash) : null;
   const prefix = `/c/${token}${k ? `/k/${k}` : ""}`;
+
+  // 링크를 받은 사람이 무엇을 보고 있는지 알 수 있도록 제목·종류·올린 시각을 상단에 둔다.
+  const head = (
+    <>
+      <header className="share-bar">
+        <span className="share-brand" translate="no">
+          <span className="share-brand-dot" aria-hidden="true" />
+          Artipin
+        </span>
+        <CopyLink />
+      </header>
+      <div className="share-head">
+        <h1 className="share-title">{file.title}</h1>
+        <span className="share-kind">
+          {
+            { image: "이미지", html: "HTML", pdf: "PDF", site: "사이트" }[
+              file.kind
+            ]
+          }
+        </span>
+        <span className="share-when">
+          {new Date(file.createdAt).toLocaleString("ko-KR", {
+            timeZone: "Asia/Seoul",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}{" "}
+          올림
+        </span>
+      </div>
+    </>
+  );
+
+  // PDF는 페이지마다 /c/{token}?p={n}으로 PNG를 받는다.
+  const t = file.replacedAt ? `t=${file.replacedAt}` : "";
+  const pages =
+    file.kind === "pdf"
+      ? Array.from(
+          { length: await pdfPageCount(file.storagePath) },
+          (_, i) => `${contentOrigin()}${prefix}?p=${i + 1}${t && `&${t}`}`,
+        )
+      : [`${contentOrigin()}${prefix}${t && `?${t}`}`];
+
+  // 보기 전용 링크(view_token)로 열렸으면 본문만 서버에서 그린다. 댓글·버전·열람자 조회와 클라이언트 뷰어를 거치지 않으므로
+  // 댓글 링크(share_token)나 file 객체가 응답에 실리지 않는다. 방문 기록(ViewBeacon)도 남기지 않는다.
+  if (found.viewOnly)
+    return (
+      <>
+        {head}
+        <main id="main" className="viewer">
+          {file.kind === "html" || file.kind === "site" ? (
+            <iframe
+              className="html-frame"
+              title="업로드된 HTML"
+              sandbox="allow-scripts"
+              src={
+                file.kind === "site"
+                  ? `${contentOrigin()}${prefix}/index.html`
+                  : `${contentOrigin()}${prefix}`
+              }
+            />
+          ) : (
+            <div className="pages">
+              {pages.map((src, i) => (
+                <div key={src} className="stage">
+                  {/* biome-ignore lint/performance/noImgElement: CONTENT_HOST의 외부 origin 이미지 */}
+                  <img
+                    src={src}
+                    alt={
+                      file.kind === "pdf"
+                        ? `${file.title} ${i + 1}페이지`
+                        : file.title
+                    }
+                    decoding="async"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      </>
+    );
+
   // 비밀번호를 설정·변경·해제하면 뷰어를 다시 마운트해 새 주소를 쓰게 한다. 해시 원문은 클라이언트로 보내지 않는다.
   const lockKey = file.passwordHash
     ? `:${createHash("sha256").update(file.passwordHash).digest("hex").slice(0, 8)}`
@@ -98,36 +182,9 @@ export default async function SharePage({
       viewerNames.set(c.visitorId, c.authorName);
   }
 
-  // 링크를 받은 사람이 무엇을 보고 있는지 알 수 있도록 제목·종류·올린 시각을 상단에 둔다.
   const bar = (
     <>
-      <header className="share-bar">
-        <span className="share-brand" translate="no">
-          <span className="share-brand-dot" aria-hidden="true" />
-          Artipin
-        </span>
-        <CopyLink />
-      </header>
-      <div className="share-head">
-        <h1 className="share-title">{file.title}</h1>
-        <span className="share-kind">
-          {
-            { image: "이미지", html: "HTML", pdf: "PDF", site: "사이트" }[
-              file.kind
-            ]
-          }
-        </span>
-        <span className="share-when">
-          {new Date(file.createdAt).toLocaleString("ko-KR", {
-            timeZone: "Asia/Seoul",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })}{" "}
-          올림
-        </span>
-      </div>
+      {head}
       {isOwner ? (
         <VersionList
           fileId={file.id}
@@ -193,16 +250,6 @@ export default async function SharePage({
       </>
     );
   }
-
-  // PDF는 페이지마다 /c/{token}?p={n}으로 PNG를 받는다.
-  const t = file.replacedAt ? `t=${file.replacedAt}` : "";
-  const pages =
-    file.kind === "pdf"
-      ? Array.from(
-          { length: await pdfPageCount(file.storagePath) },
-          (_, i) => `${contentOrigin()}${prefix}?p=${i + 1}${t && `&${t}`}`,
-        )
-      : [`${contentOrigin()}${prefix}${t && `?${t}`}`];
 
   return (
     <>

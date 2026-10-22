@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const found = await findViewableFile(token);
+  const found = await findViewableFile(token, true);
   if (found.status !== "ok")
     return NextResponse.json(
       { error: "파일을 찾을 수 없습니다." },

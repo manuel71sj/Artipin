@@ -43,6 +43,13 @@
       "when": 1792626442057,
       "tag": "0005_mysterious_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792628166674,
+      "tag": "0006_productive_bishop",
+      "breakpoints": true
     }
   ]
 }

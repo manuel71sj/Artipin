@@ -17,8 +17,11 @@ type ExpireState = "idle" | "saving" | "failed";
 // 비밀번호 설정·변경은 입력을 받아 저장한다. 해제는 입력 없이 바로 요청한다.
 type PasswordState = "idle" | "editing" | "saving" | "failed";
 
+// 보기 전용 링크 만들기·끊기는 확인 없이 즉시 요청한다(비밀번호 해제와 같다). 실패 표시는 role="alert" 문구로만 한다.
+type ViewLinkState = "idle" | "saving" | "failed";
+
 const COPY_LABEL: Record<CopyState, string> = {
-  idle: "링크 복사",
+  idle: "댓글 링크 복사",
   copied: "복사했습니다",
   failed: "복사 실패",
 };
@@ -26,14 +29,18 @@ const COPY_LABEL: Record<CopyState, string> = {
 export function FileActions({
   id,
   path,
+  viewPath,
   hasPassword,
 }: {
   id: number;
   path: string;
+  viewPath: string | null;
   hasPassword: boolean;
 }) {
   const router = useRouter();
   const [copy, setCopy] = useState<CopyState>("idle");
+  const [viewCopy, setViewCopy] = useState<CopyState>("idle");
+  const [viewLink, setViewLink] = useState<ViewLinkState>("idle");
   const [del, setDel] = useState<DeleteState>("idle");
   const [replace, setReplace] = useState<ReplaceState>("idle");
   const [reissue, setReissue] = useState<ReissueState>("idle");
@@ -64,16 +71,31 @@ export function FileActions({
     setReissue((r) => (r === "reissuing" ? "idle" : r));
   }, [path]);
 
-  async function copyLink() {
+  // 댓글 링크와 보기 전용 링크가 같은 타이머를 쓰므로 한 번에 하나의 표시만 켠다.
+  async function copyLink(target: string, set: (s: CopyState) => void) {
     let next: CopyState = "copied";
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      await navigator.clipboard.writeText(`${window.location.origin}${target}`);
     } catch {
       next = "failed";
     }
     clearTimeout(timer.current);
-    setCopy(next);
-    timer.current = setTimeout(() => setCopy("idle"), 1500);
+    setCopy("idle");
+    setViewCopy("idle");
+    set(next);
+    timer.current = setTimeout(() => set("idle"), 1500);
+  }
+
+  // 만들기는 POST, 끊기는 DELETE. 성공하면 목록을 갱신해 버튼을 바꾼다.
+  async function changeViewLink(method: "POST" | "DELETE") {
+    setViewLink("saving");
+    const res = await fetch(`/api/files/${id}/view-link`, { method }).catch(
+      () => null,
+    );
+    if (res?.ok) {
+      setViewLink("idle");
+      router.refresh();
+    } else setViewLink("failed");
   }
 
   async function remove() {
@@ -158,8 +180,8 @@ export function FileActions({
       ) : null}
       {reissuing ? (
         <span className={styles.replaceNote}>
-          이전 링크로는 더 이상 열 수 없습니다. 댓글과 조회 기록은 그대로
-          유지됩니다.
+          이전 댓글 링크로는 더 이상 열 수 없습니다. 보기 전용 링크·댓글·조회
+          기록은 그대로 유지됩니다.
         </span>
       ) : null}
       {editingPw ? (
@@ -207,10 +229,42 @@ export function FileActions({
             className={styles.copy}
             data-state={copy}
             aria-live="polite"
-            onClick={copyLink}
+            onClick={() => copyLink(path, setCopy)}
           >
             {COPY_LABEL[copy]}
           </button>
+          {viewPath === null ? (
+            <button
+              type="button"
+              className={styles.remove}
+              disabled={viewLink === "saving"}
+              onClick={() => changeViewLink("POST")}
+            >
+              보기 전용 링크 만들기
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.copy}
+                data-state={viewCopy}
+                aria-live="polite"
+                onClick={() => copyLink(viewPath, setViewCopy)}
+              >
+                {viewCopy === "idle"
+                  ? "보기 전용 링크 복사"
+                  : COPY_LABEL[viewCopy]}
+              </button>
+              <button
+                type="button"
+                className={styles.remove}
+                disabled={viewLink === "saving"}
+                onClick={() => changeViewLink("DELETE")}
+              >
+                보기 전용 링크 끊기
+              </button>
+            </>
+          )}
           {/* 현재 값을 역산해 보여주지 않는 동작 전용 컨트롤이다. 요청이 끝나면 안내 항목으로 돌아간다. */}
           <select
             className={styles.period}
@@ -258,8 +312,8 @@ export function FileActions({
             : reissue === "failed"
               ? "다시 시도"
               : reissuing
-                ? "새 링크 만들기"
-                : "링크 새로 만들기"}
+                ? "새 댓글 링크 만들기"
+                : "댓글 링크 새로 만들기"}
         </button>
       )}
       {reissuing ? (
@@ -362,6 +416,11 @@ export function FileActions({
       {pw === "failed" ? (
         <span role="alert" className="sr-only">
           비밀번호를 저장하지 못했습니다
+        </span>
+      ) : null}
+      {viewLink === "failed" ? (
+        <span role="alert" className="sr-only">
+          보기 전용 링크를 바꾸지 못했습니다
         </span>
       ) : null}
       {reissue === "failed" ? (
