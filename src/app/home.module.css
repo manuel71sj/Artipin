@@ -368,10 +368,22 @@
   position: relative;
   grid-column: 1 / -1;
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+/* 기능별 버튼 묶음 한 줄(링크 / 공개 설정 / 파일). 확인 단계에서 버튼이 모두 빠진 줄은 숨긴다. */
+.group {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-1);
+}
+
+.group:empty {
+  display: none;
 }
 
 /* 평소에는 약한 테두리, 의도가 보일 때(hover·포커스) 남색으로 */
@@ -401,12 +413,27 @@
   }
 }
 
+/* 가장 자주 쓰는 댓글 링크 복사는 primary로 채워 눈에 띄게 한다 */
+.primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover:not(:disabled) {
+    border-color: var(--color-secondary);
+    background: var(--color-secondary);
+  }
+}
+
 .copy[data-state="copied"] {
   border-color: var(--color-primary);
 }
 
 .copy[data-state="failed"] {
   border-color: var(--color-destructive);
+  background: transparent;
   color: var(--color-destructive);
 }
 
@@ -529,8 +556,12 @@
 
   .actions {
     grid-column: 1 / -1;
-    justify-content: flex-start;
+    align-items: flex-start;
     margin-top: var(--space-1);
+  }
+
+  .group {
+    justify-content: flex-start;
   }
 }
 

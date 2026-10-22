@@ -210,252 +210,261 @@ export function FileActions({
           기록은 그대로 유지됩니다.
         </span>
       ) : null}
-      {editingPw ? (
-        <>
-          <span className={styles.replaceNote}>
-            비밀번호는 링크와 따로 전달하세요.
-          </span>
-          <input
-            className={styles.password}
-            type="password"
-            aria-label="비밀번호"
-            autoComplete="new-password"
-            maxLength={100}
-            value={password}
-            disabled={pw === "saving"}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && password !== "") savePassword(password);
-            }}
-          />
-          <button
-            type="button"
-            className={styles.copy}
-            disabled={pw === "saving" || password === ""}
-            onClick={() => savePassword(password)}
-          >
-            {pw === "saving" ? "저장 중…" : "저장"}
-          </button>
-          <button
-            type="button"
-            className={styles.remove}
-            disabled={pw === "saving"}
-            onClick={() => {
-              setPw("idle");
-              setPassword("");
-            }}
-          >
-            취소
-          </button>
-        </>
-      ) : confirming || replacing || reissuing ? null : (
-        <>
-          {encrypted ? null : (
-            <>
+      {/* 버튼은 기능별로 한 줄씩 묶는다: 링크 / 공개 설정 / 파일. 보이는 버튼이 없는 줄은 CSS로 숨긴다. */}
+      <div className={styles.group}>
+        {confirming || replacing || editingPw || encrypted ? null : (
+          <>
+            {reissuing ? null : (
               <button
                 type="button"
-                className={styles.copy}
+                className={`${styles.copy} ${styles.primary}`}
                 data-state={copy}
                 aria-live="polite"
                 onClick={() => copyLink(path, setCopy)}
               >
                 {COPY_LABEL[copy]}
               </button>
-              {viewPath === null ? (
+            )}
+            <button
+              ref={reissueRef}
+              type="button"
+              className={reissuing ? styles.confirm : styles.remove}
+              disabled={reissue === "reissuing"}
+              onClick={() =>
+                reissuing ? reissueLink() : setReissue("confirm")
+              }
+            >
+              {reissue === "reissuing"
+                ? "만드는 중…"
+                : reissue === "failed"
+                  ? "다시 시도"
+                  : reissuing
+                    ? "새 댓글 링크 만들기"
+                    : "댓글 링크 새로 만들기"}
+            </button>
+            {reissuing ? (
+              <button
+                type="button"
+                className={styles.remove}
+                disabled={reissue === "reissuing"}
+                onClick={() => {
+                  setReissue("idle");
+                  reissueRef.current?.focus();
+                }}
+              >
+                취소
+              </button>
+            ) : viewPath === null ? (
+              <button
+                type="button"
+                className={styles.remove}
+                disabled={viewLink === "saving"}
+                onClick={() => changeViewLink("POST")}
+              >
+                보기 전용 링크 만들기
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={styles.copy}
+                  data-state={viewCopy}
+                  aria-live="polite"
+                  onClick={() => copyLink(viewPath, setViewCopy)}
+                >
+                  {viewCopy === "idle"
+                    ? "보기 전용 링크 복사"
+                    : COPY_LABEL[viewCopy]}
+                </button>
                 <button
                   type="button"
                   className={styles.remove}
                   disabled={viewLink === "saving"}
-                  onClick={() => changeViewLink("POST")}
+                  onClick={() => changeViewLink("DELETE")}
                 >
-                  보기 전용 링크 만들기
+                  보기 전용 링크 끊기
                 </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className={styles.copy}
-                    data-state={viewCopy}
-                    aria-live="polite"
-                    onClick={() => copyLink(viewPath, setViewCopy)}
-                  >
-                    {viewCopy === "idle"
-                      ? "보기 전용 링크 복사"
-                      : COPY_LABEL[viewCopy]}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.remove}
-                    disabled={viewLink === "saving"}
-                    onClick={() => changeViewLink("DELETE")}
-                  >
-                    보기 전용 링크 끊기
-                  </button>
-                </>
-              )}
-            </>
-          )}
-          {/* 현재 값을 역산해 보여주지 않는 동작 전용 컨트롤이다. 요청이 끝나면 안내 항목으로 돌아간다. */}
-          <select
-            className={styles.period}
-            aria-label="링크 공개 기간"
-            value=""
-            disabled={expire === "saving"}
-            onChange={(e) => setPeriod(e.target.value)}
-          >
-            <option value="">만료 설정…</option>
-            <option value="none">만료 없음</option>
-            <option value="1">1일</option>
-            <option value="7">7일</option>
-            <option value="30">30일</option>
-          </select>
-          <button
-            type="button"
-            className={styles.remove}
-            disabled={pw === "saving"}
-            onClick={() => setPw("editing")}
-          >
-            {hasPassword ? "비밀번호 변경" : "비밀번호 설정"}
-          </button>
-          {hasPassword ? (
+              </>
+            )}
+          </>
+        )}
+      </div>
+      <div className={styles.group}>
+        {editingPw ? (
+          <>
+            <span className={styles.replaceNote}>
+              비밀번호는 링크와 따로 전달하세요.
+            </span>
+            <input
+              className={styles.password}
+              type="password"
+              aria-label="비밀번호"
+              autoComplete="new-password"
+              maxLength={100}
+              value={password}
+              disabled={pw === "saving"}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && password !== "")
+                  savePassword(password);
+              }}
+            />
+            <button
+              type="button"
+              className={styles.copy}
+              disabled={pw === "saving" || password === ""}
+              onClick={() => savePassword(password)}
+            >
+              {pw === "saving" ? "저장 중…" : "저장"}
+            </button>
             <button
               type="button"
               className={styles.remove}
               disabled={pw === "saving"}
-              onClick={() => savePassword(null)}
+              onClick={() => {
+                setPw("idle");
+                setPassword("");
+              }}
             >
-              비밀번호 해제
+              취소
             </button>
-          ) : null}
-        </>
-      )}
-      {confirming || replacing || reissuing || editingPw ? null : teamId !==
-        null ? (
-        <button
-          type="button"
-          className={styles.remove}
-          disabled={move === "saving"}
-          onClick={() => moveTo(null)}
-        >
-          개인으로 되돌리기
-        </button>
-      ) : (
-        teams.map((t) => (
+          </>
+        ) : confirming || replacing || reissuing ? null : (
+          <>
+            {/* 현재 값을 역산해 보여주지 않는 동작 전용 컨트롤이다. 요청이 끝나면 안내 항목으로 돌아간다. */}
+            <select
+              className={styles.period}
+              aria-label="링크 공개 기간"
+              value=""
+              disabled={expire === "saving"}
+              onChange={(e) => setPeriod(e.target.value)}
+            >
+              <option value="">만료 설정…</option>
+              <option value="none">만료 없음</option>
+              <option value="1">1일</option>
+              <option value="7">7일</option>
+              <option value="30">30일</option>
+            </select>
+            <button
+              type="button"
+              className={styles.remove}
+              disabled={pw === "saving"}
+              onClick={() => setPw("editing")}
+            >
+              {hasPassword ? "비밀번호 변경" : "비밀번호 설정"}
+            </button>
+            {hasPassword ? (
+              <button
+                type="button"
+                className={styles.remove}
+                disabled={pw === "saving"}
+                onClick={() => savePassword(null)}
+              >
+                비밀번호 해제
+              </button>
+            ) : null}
+          </>
+        )}
+      </div>
+      <div className={styles.group}>
+        {confirming || replacing || reissuing || editingPw ? null : teamId !==
+          null ? (
           <button
-            key={t.id}
             type="button"
             className={styles.remove}
             disabled={move === "saving"}
-            onClick={() => moveTo(t.id)}
+            onClick={() => moveTo(null)}
           >
-            팀으로 옮기기: {t.name}
+            개인으로 되돌리기
           </button>
-        ))
-      )}
-      {confirming || replacing || editingPw || encrypted ? null : (
-        <button
-          ref={reissueRef}
-          type="button"
-          className={reissuing ? styles.confirm : styles.remove}
-          disabled={reissue === "reissuing"}
-          onClick={() => (reissuing ? reissueLink() : setReissue("confirm"))}
-        >
-          {reissue === "reissuing"
-            ? "만드는 중…"
-            : reissue === "failed"
-              ? "다시 시도"
-              : reissuing
-                ? "새 댓글 링크 만들기"
-                : "댓글 링크 새로 만들기"}
-        </button>
-      )}
-      {reissuing ? (
-        <button
-          type="button"
-          className={styles.remove}
-          disabled={reissue === "reissuing"}
-          onClick={() => {
-            setReissue("idle");
-            reissueRef.current?.focus();
-          }}
-        >
-          취소
-        </button>
-      ) : null}
-      {confirming || reissuing || editingPw || encrypted ? null : (
-        <>
-          <input
-            ref={inputRef}
-            type="file"
-            hidden
-            onChange={(e) => {
-              const picked = e.target.files?.[0];
-              e.target.value = "";
-              if (!picked) return;
-              setNewFile(picked);
-              setReplace("confirm");
-            }}
-          />
+        ) : (
+          teams.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={styles.remove}
+              disabled={move === "saving"}
+              onClick={() => moveTo(t.id)}
+            >
+              팀으로 옮기기: {t.name}
+            </button>
+          ))
+        )}
+        {confirming || reissuing || editingPw || encrypted ? null : (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              hidden
+              onChange={(e) => {
+                const picked = e.target.files?.[0];
+                e.target.value = "";
+                if (!picked) return;
+                setNewFile(picked);
+                setReplace("confirm");
+              }}
+            />
+            <button
+              ref={replaceRef}
+              type="button"
+              className={replacing ? styles.confirm : styles.remove}
+              disabled={replace === "replacing"}
+              onClick={() =>
+                replacing ? replaceBody() : inputRef.current?.click()
+              }
+            >
+              {replace === "replacing"
+                ? "교체 중…"
+                : replace === "failed"
+                  ? "다시 시도"
+                  : "교체"}
+            </button>
+          </>
+        )}
+        {reissuing || editingPw ? null : replacing ? (
           <button
-            ref={replaceRef}
             type="button"
-            className={replacing ? styles.confirm : styles.remove}
+            className={styles.remove}
             disabled={replace === "replacing"}
-            onClick={() =>
-              replacing ? replaceBody() : inputRef.current?.click()
-            }
+            onClick={() => {
+              setReplace("idle");
+              setNewFile(null);
+              replaceRef.current?.focus();
+            }}
           >
-            {replace === "replacing"
-              ? "교체 중…"
-              : replace === "failed"
-                ? "다시 시도"
-                : "교체"}
+            취소
           </button>
-        </>
-      )}
-      {reissuing || editingPw ? null : replacing ? (
-        <button
-          type="button"
-          className={styles.remove}
-          disabled={replace === "replacing"}
-          onClick={() => {
-            setReplace("idle");
-            setNewFile(null);
-            replaceRef.current?.focus();
-          }}
-        >
-          취소
-        </button>
-      ) : (
-        <button
-          ref={removeRef}
-          type="button"
-          className={confirming ? styles.confirm : styles.remove}
-          disabled={del === "deleting"}
-          onClick={() => (confirming ? remove() : setDel("confirm"))}
-        >
-          {del === "deleting"
-            ? "삭제 중…"
-            : del === "failed"
-              ? "다시 시도"
-              : confirming
-                ? "링크 닫고 삭제"
-                : "삭제"}
-        </button>
-      )}
-      {confirming ? (
-        <button
-          type="button"
-          className={styles.remove}
-          disabled={del === "deleting"}
-          onClick={() => {
-            setDel("idle");
-            removeRef.current?.focus();
-          }}
-        >
-          취소
-        </button>
-      ) : null}
+        ) : (
+          <button
+            ref={removeRef}
+            type="button"
+            className={confirming ? styles.confirm : styles.remove}
+            disabled={del === "deleting"}
+            onClick={() => (confirming ? remove() : setDel("confirm"))}
+          >
+            {del === "deleting"
+              ? "삭제 중…"
+              : del === "failed"
+                ? "다시 시도"
+                : confirming
+                  ? "링크 닫고 삭제"
+                  : "삭제"}
+          </button>
+        )}
+        {confirming ? (
+          <button
+            type="button"
+            className={styles.remove}
+            disabled={del === "deleting"}
+            onClick={() => {
+              setDel("idle");
+              removeRef.current?.focus();
+            }}
+          >
+            취소
+          </button>
+        ) : null}
+      </div>
       {move === "failed" ? (
         <span role="alert" className="sr-only">
           파일을 옮기지 못했습니다
