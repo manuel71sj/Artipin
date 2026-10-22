@@ -106,8 +106,10 @@ export function PinPopover({
   }, [onClose]);
 
   async function remove(id: number) {
-    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    if (res.ok) {
+    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" }).catch(
+      () => null,
+    );
+    if (res?.ok) {
       onClose();
       router.refresh();
       return;
@@ -115,7 +117,7 @@ export function PinPopover({
     setError({
       itemId: item.id,
       message:
-        ((await res.json().catch(() => null)) as { error?: string } | null)
+        ((await res?.json().catch(() => null)) as { error?: string } | null)
           ?.error ?? "삭제하지 못했습니다. 잠시 후 다시 시도하세요.",
     });
   }
@@ -128,13 +130,13 @@ export function PinPopover({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ author_name: name, body, parentId: item.id }),
-    });
+    }).catch(() => null);
     setBusy(false);
-    if (!res.ok) {
+    if (!res?.ok) {
       setError({
         itemId: item.id,
         message:
-          ((await res.json().catch(() => null)) as { error?: string } | null)
+          ((await res?.json().catch(() => null)) as { error?: string } | null)
             ?.error ?? "답글을 작성하지 못했습니다. 잠시 후 다시 시도하세요.",
       });
       return;
@@ -266,11 +268,11 @@ export function NewCommentPopover({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ author_name: name, body, anchor }),
-    });
+    }).catch(() => null);
     setBusy(false);
-    if (!res.ok) {
+    if (!res?.ok) {
       setError(
-        ((await res.json().catch(() => null)) as { error?: string } | null)
+        ((await res?.json().catch(() => null)) as { error?: string } | null)
           ?.error ?? "댓글을 작성하지 못했습니다. 잠시 후 다시 시도하세요.",
       );
       return;

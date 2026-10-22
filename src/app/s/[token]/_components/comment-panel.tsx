@@ -121,14 +121,16 @@ export function CommentPanel({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ resolved: !c.resolved }),
-    });
-    if (res.ok) router.refresh();
+    }).catch(() => null);
+    if (res?.ok) router.refresh();
     else setError("처리하지 못했습니다. 잠시 후 다시 시도하세요.");
   }
 
   async function remove(id: number) {
-    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    if (res.ok) router.refresh();
+    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" }).catch(
+      () => null,
+    );
+    if (res?.ok) router.refresh();
     else setError("삭제하지 못했습니다. 잠시 후 다시 시도하세요.");
   }
 
