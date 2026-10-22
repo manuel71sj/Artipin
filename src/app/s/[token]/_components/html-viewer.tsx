@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommentItem, CommentPanel, type HtmlPin } from "./comment-panel";
+import { EditPanel, type TextEdit } from "./edit-panel";
 import { ModeToggle } from "./mode-toggle";
 import { NewCommentPopover, PinPopover } from "./pin-popover";
 import { useLiveComments } from "./use-live-comments";
@@ -28,6 +29,7 @@ function parseMessage(
   | { type: "pin-click"; id: number; x: number; y: number }
   | { type: "pin-close" }
   | { type: "pointer"; anchor: HtmlPin }
+  | { type: "text-edited"; selector: string; before: string; text: string }
   | null {
   if (typeof data !== "object" || data === null) return null;
   const d = data as Record<string, unknown>;
@@ -54,6 +56,21 @@ function parseMessage(
         relX: d.relX,
         relY: d.relY,
       },
+    };
+  }
+  if (
+    d.type === "text-edited" &&
+    typeof d.selector === "string" &&
+    d.selector.length >= 1 &&
+    d.selector.length <= 500 &&
+    typeof d.before === "string" &&
+    typeof d.text === "string"
+  ) {
+    return {
+      type: "text-edited",
+      selector: d.selector,
+      before: d.before,
+      text: d.text,
     };
   }
   if (
@@ -104,6 +121,7 @@ export function HtmlViewer({
   items: initialItems,
   isOwner,
   entryPath,
+  edit,
 }: {
   src: string;
   token: string;
@@ -111,6 +129,8 @@ export function HtmlViewer({
   isOwner: boolean;
   // site(zip)의 진입 페이지 경로. 있으면 iframe 안에서 다른 페이지로 이동했을 때 핀을 끈다.
   entryPath?: string;
+  // 소유자의 단일 HTML 파일에만 준다. 있으면 본문 텍스트 편집 모드와 수정본 다운로드를 켠다.
+  edit?: { fileId: number; title: string };
 }) {
   // 비밀번호 파일은 렌더마다 주소의 티켓이 바뀐다. router.refresh()에 iframe이 다시 로드되거나 진입 판정이 어긋나지 않도록 마운트 때 고정한다.
   const [frame] = useState({ src, entryPath });
@@ -135,6 +155,13 @@ export function HtmlViewer({
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [commentMode, setCommentMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [edits, setEdits] = useState<TextEdit[]>([]);
+  // 리스너·다운로드 핸들러가 최신 값을 읽도록 ref에 둔다.
+  const editableRef = useRef(edit !== undefined);
+  editableRef.current = edit !== undefined;
+  const editsRef = useRef(edits);
+  editsRef.current = edits;
   const [viewport, setViewport] = useState<number | null>(null);
   // x·y는 클릭한 자리(iframe 안 뷰포트 좌표)로, 새 댓글 박스를 놓는 기준이다.
   const [pending, setPending] = useState<{
@@ -194,7 +221,21 @@ export function HtmlViewer({
           y: msg.y,
           flip: msg.x > (iframeRef.current?.clientWidth ?? 0) / 2,
         });
-      } else {
+      } else if (msg.type === "text-edited") {
+        if (!editableRef.current) return;
+        // 같은 요소를 다시 고치면 첫 before를 유지하고, 원래 텍스트로 돌아오면 항목을 뺀다.
+        setEdits((prev) => {
+          const at = prev.findIndex((x) => x.selector === msg.selector);
+          if (at < 0)
+            return [
+              ...prev,
+              { selector: msg.selector, before: msg.before, after: msg.text },
+            ];
+          if (prev[at].before === msg.text)
+            return prev.filter((_, i) => i !== at);
+          return prev.map((x, i) => (i === at ? { ...x, after: msg.text } : x));
+        });
+      } else if (msg.type === "anchor-picked") {
         setOpen(null);
         setPending({
           anchor: msg.anchor,
@@ -219,6 +260,7 @@ export function HtmlViewer({
   useEffect(() => {
     if (onEntry) return;
     setCommentMode(false);
+    setEditMode(false);
     setPending(null);
     setOpen(null);
   }, [onEntry]);
@@ -226,10 +268,13 @@ export function HtmlViewer({
   useEffect(() => {
     if (readySeq > 0)
       iframeRef.current?.contentWindow?.postMessage(
-        { type: "mode", mode: commentMode ? "comment" : "browse" },
+        {
+          type: "mode",
+          mode: editMode ? "edit" : commentMode ? "comment" : "browse",
+        },
         "*",
       );
-  }, [readySeq, commentMode]);
+  }, [readySeq, commentMode, editMode]);
 
   useEffect(() => {
     if (readySeq > 0 && onEntry)
@@ -271,7 +316,25 @@ export function HtmlViewer({
 
   function setMode(comment: boolean) {
     setCommentMode(comment);
+    setEditMode(false);
     if (!comment) setPending(null);
+  }
+
+  function startEditMode() {
+    setCommentMode(false);
+    setPending(null);
+    setEditMode(true);
+  }
+
+  // 목록에서 빼고 화면의 텍스트도 원래대로 돌린다.
+  function cancelEdit(selector: string) {
+    const target = edits.find((x) => x.selector === selector);
+    if (!target) return;
+    setEdits(edits.filter((x) => x.selector !== selector));
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "restore-text", selector, text: target.before },
+      "*",
+    );
   }
 
   function scrollToPin(c: CommentItem) {
@@ -287,8 +350,10 @@ export function HtmlViewer({
         <div className="viewer-tools">
           <ModeToggle
             commentMode={commentMode}
+            editMode={editMode}
             disabled={!bridgeReady || offEntry}
             onChange={setMode}
+            onEdit={edit ? startEditMode : undefined}
           />
           <div className="mode-toggle">
             {VIEWPORTS.map((v) => (
@@ -305,6 +370,20 @@ export function HtmlViewer({
         </div>
         {commentMode ? (
           <p className="viewer-note">화면의 원하는 위치를 클릭하세요.</p>
+        ) : null}
+        {editMode && edit ? (
+          <>
+            <p className="viewer-note">
+              텍스트만 있는 요소를 눌러 고칠 수 있습니다.
+            </p>
+            <EditPanel
+              edits={edits}
+              editsRef={editsRef}
+              fileId={edit.fileId}
+              title={edit.title}
+              onCancel={cancelEdit}
+            />
+          </>
         ) : null}
         {offEntry ? (
           <p className="viewer-note">이 페이지는 핀 댓글 미지원</p>

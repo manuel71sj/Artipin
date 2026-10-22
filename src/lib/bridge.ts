@@ -12,6 +12,9 @@ const BRIDGE = `(function () {
   var pickedSel = null;
   var hoverEl = null;
   var skipClick = false;
+  var editing = null;
+  var editPrev = null;
+  var editStart = "";
   var styled = false;
   var MAX = 500;
 
@@ -103,6 +106,40 @@ const BRIDGE = `(function () {
     return null;
   }
 
+  // 편집 대상: 텍스트 노드만 자식으로 가진 요소(핀·body·html 제외). 서식·구조는 편집하지 않는다.
+  function textOnly(el) {
+    if (!el || el.nodeType !== 1 || el === document.body || el === document.documentElement || pinOf(el)) return false;
+    for (var i = 0; i < el.childNodes.length; i++) {
+      if (el.childNodes[i].nodeType !== 3) return false;
+    }
+    return el.textContent.trim() !== "";
+  }
+
+  // plaintext-only는 붙여넣기·단축키로 서식 요소가 들어오는 것을 막는다.
+  function startEdit(el) {
+    if (editing) editing.blur();
+    editing = el;
+    editStart = el.textContent;
+    // 문서가 원래 둔 contenteditable 값을 끝날 때 되돌린다.
+    editPrev = el.getAttribute("contenteditable");
+    el.contentEditable = "plaintext-only";
+    el.addEventListener("blur", endEdit, { once: true });
+  }
+
+  function endEdit() {
+    var el = editing;
+    editing = null;
+    if (editPrev === null) el.removeAttribute("contenteditable");
+    else el.setAttribute("contenteditable", editPrev);
+    if (el.textContent === editStart) return;
+    var selector = selectorOf(el);
+    if (!selector) return;
+    parent.postMessage(
+      { type: "text-edited", selector: selector, before: editStart, text: el.textContent },
+      "*"
+    );
+  }
+
   // 드래그 선택을 선택 앵커로 보낸다. 뒤따르는 click이 요소 핀을 또 만들지 않게 skipClick을 세운다.
   function onMouseUp() {
     if (mode !== "comment") return;
@@ -148,6 +185,11 @@ const BRIDGE = `(function () {
         },
         "*"
       );
+      return;
+    }
+    if (mode === "edit") {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
     if (mode !== "comment") {
@@ -323,7 +365,7 @@ const BRIDGE = `(function () {
     if (d.type === "hello") {
       announce();
     } else if (d.type === "mode") {
-      if (d.mode === "browse" || d.mode === "comment") mode = d.mode;
+      if (d.mode === "browse" || d.mode === "comment" || d.mode === "edit") mode = d.mode;
       if (mode !== "comment") {
         pickedSel = null;
         hoverEl = null;
@@ -333,6 +375,10 @@ const BRIDGE = `(function () {
       if (d.selector !== null && typeof d.selector !== "string") return;
       pickedSel = d.selector;
       paint();
+    } else if (d.type === "restore-text") {
+      if (typeof d.selector !== "string" || typeof d.text !== "string") return;
+      var back = find(d.selector);
+      if (back) back.textContent = d.text;
     } else if (d.type === "render-pins") {
       if (!validPins(d.pins)) return;
       pins = d.pins;
@@ -348,8 +394,10 @@ const BRIDGE = `(function () {
       if (hit) hit.el.scrollIntoView({ block: "center", inline: "center" });
     }
   });
-  window.addEventListener("mousedown", function () {
+  // 캐럿이 클릭한 자리에 생기도록 편집 가능 상태는 click이 아니라 mousedown에서 켠다.
+  window.addEventListener("mousedown", function (e) {
     skipClick = false;
+    if (mode === "edit" && e.target !== editing && textOnly(e.target)) startEdit(e.target);
   }, true);
   window.addEventListener("mouseup", onMouseUp, true);
   window.addEventListener("click", onClick, true);
@@ -388,6 +436,11 @@ const BRIDGE = `(function () {
   }, true);
   window.addEventListener("keydown", function (e) {
     if (e.key === "Escape") parent.postMessage({ type: "pin-close" }, "*");
+    // Enter는 줄바꿈 대신 편집 확정 단축키다. 한글 등 조합 중 Enter는 조합 확정이라 건너뛴다.
+    if (e.key === "Enter" && editing && !e.isComposing) {
+      e.preventDefault();
+      editing.blur();
+    }
   });
   window.addEventListener("resize", draw);
   window.addEventListener("load", draw);

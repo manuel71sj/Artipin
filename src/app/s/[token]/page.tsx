@@ -183,6 +183,11 @@ export default async function SharePage({
             token={token}
             items={items}
             isOwner={isOwner}
+            edit={
+              isOwner && file.kind === "html"
+                ? { fileId: file.id, title: file.title }
+                : undefined
+            }
           />
         </main>
       </>

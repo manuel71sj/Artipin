@@ -49,7 +49,7 @@
 <main>
 
 <h1>HTML 격리·앵커링 명세</h1>
-<p class="sub">업로드된 독립형 HTML을 안전하게 실행하고, 그 위에 핀 댓글을 붙이는 방법 · Artipin MVP · 이슈 #6, #8, #39 구현 기준</p>
+<p class="sub">업로드된 독립형 HTML을 안전하게 실행하고, 그 위에 핀 댓글을 붙이는 방법 · Artipin MVP · 이슈 #6, #8, #39, #40 구현 기준</p>
 
 <div class="card">
   <strong>핵심 규칙 세 가지.</strong><br>
@@ -69,6 +69,8 @@
 <tr><td>적대적 HTML이 <code>pointer</code> 메시지 위조·폭주</td><td>부모가 <code>event.source</code>·스키마(<code>anchor-picked</code>와 같은 selector 1~500자, relX·relY 0~1) 검사 후 마지막 값만 들고 100ms에 1회만 POST. 업로드 HTML은 <code>connect-src 'none'</code>·불투명 출처라 포인터 API를 직접 호출할 수 없다</td><td class="warn">엉뚱한 위치의 커서(최악). 초당 수천 건 메시지는 부모의 검사 함수까지는 실행된다(서버로는 ≤10건/초)</td></tr>
 <tr><td>링크 보유자가 포인터 API를 직접 호출해 다른 방문자 화면에 커서 폭주</td><td>서버가 댓글 API와 같은 앵커 스키마(image·pdf·html)로 검증(위반 400), 파일 종류 일치 확인. 서버측 속도 제한은 두지 않는다 — 댓글 API도 없고, 영향은 같은 파일을 보는 사람의 화면 점 표시에 그친다</td><td class="warn">화면 소음. 관찰되면 그때 방문자별 제한을 추가</td></tr>
 <tr><td>실시간 커서로 다른 방문자의 위치·활동이 업로드 HTML에 노출</td><td>HTML 파일은 부모가 다른 방문자의 커서를 <code>render-pointers</code>로 iframe에 넘긴다(아래 "실시간 커서 노출 정보"). 이름·쿠키 값·이메일·IP는 싣지 않고 파일별 불투명 id만 쓴다</td><td class="warn">업로드 HTML이 (외부 리소스 허용 정책에 따라) 같은 파일을 보는 다른 방문자들의 위치·움직임·활동 시점을 읽어 외부로 보낼 수 있다. 감수</td></tr>
+<tr><td>원본 소스를 APP origin에서 내려받는 경로(<code>GET /api/files/{id}/source</code>)</td><td>소유자 세션이고 단일 HTML일 때만 응답하고 그 외는 모두 404. <code>Content-Disposition: attachment</code>·<code>nosniff</code>라 주소를 직접 열어도 APP origin에서 렌더되지 않는다. 부모는 <code>DOMParser</code> 비활성 문서로만 파싱하고 화면 문서에 넣지 않으며, 치환은 <code>textContent</code>라 HTML 주입이 없다</td><td class="ok">없음(앱 데이터 기준)</td></tr>
+<tr><td>적대적 HTML이 <code>text-edited</code> 위조</td><td>소유자의 단일 HTML 뷰어에서만 반영하고 <code>event.source</code>·스키마·선택자 길이를 검사한다. 목록은 소유자 메모리에만 있고 다운로드 전에 전·후를 보고 취소할 수 있다. 원본·서버는 바뀌지 않는다</td><td class="warn">소유자 목록에 엉뚱한 변경 항목(최악). 업로드 HTML은 원래 소유자 본인 파일이다</td></tr>
 <tr><td>API 직접 호출로 임의 anchor 저장</td><td>댓글 생성 API가 같은 스키마 검증, 위반은 400</td><td class="ok">없음</td></tr>
 <tr><td>토큰 추측</td><td>128비트 랜덤 토큰, 추측 가능한 id 경로 없음</td><td class="ok">없음</td></tr>
 <tr><td>같은 공유 토큰 보유자가 <code>?v={no}</code>로 이전 버전 본문 열람</td><td>제한 없음 — 버전은 같은 토큰의 일부(이슈 #28 설계). 비밀번호 파일은 아래 경로 티켓이 필요</td><td class="warn">교체한 이전 본문도 링크 보유자에게 보인다. 끊으려면 파일 삭제(모든 버전 본문 삭제)</td></tr>
@@ -188,10 +190,12 @@ HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; c
 <tr><th>방향</th><th>type</th><th>payload</th><th>수신측 검사</th></tr>
 <tr><td>브리지 → 부모</td><td><code>bridge-ready</code></td><td><code>{ path }</code> (iframe 문서의 <code>location.pathname</code>). 로드 후 부모가 <code>hello</code>를 보내면 다시 보낸다</td><td>부모: <code>event.source === iframe.contentWindow</code>, path는 문자열·2000자 이하. zip 사이트에서 진입 페이지(<code>/c/{token}/index.html</code>)가 아니면 핀을 끈다</td></tr>
 <tr><td>부모 → 브리지</td><td><code>hello</code></td><td>없음</td><td>브리지: <code>event.source === window.parent</code>. 응답으로 <code>bridge-ready</code>를 다시 보낸다</td></tr>
-<tr><td>부모 → 브리지</td><td><code>mode</code></td><td><code>{ mode: "browse" | "comment" }</code></td><td>브리지: <code>event.source === window.parent</code>, mode 허용 목록</td></tr>
+<tr><td>부모 → 브리지</td><td><code>mode</code></td><td><code>{ mode: "browse" | "comment" | "edit" }</code></td><td>브리지: <code>event.source === window.parent</code>, mode 허용 목록. <code>edit</code>은 소유자의 HTML 뷰어만 보낸다</td></tr>
 <tr><td>브리지 → 부모</td><td><code>anchor-picked</code></td><td><code>{ selector, relX, relY, quote? }</code></td><td>부모: <code>event.source === iframe.contentWindow</code>, selector는 문자열·500자 이하, relX·relY는 0~1 숫자, quote는 있으면 1~300자 문자열</td></tr>
 <tr><td>부모 → 브리지</td><td><code>render-pins</code></td><td><code>[{ id, n, selector, relX, relY, quote?, resolved }]</code></td><td>브리지: 출처 확인, 배열·타입 확인</td></tr>
 <tr><td>브리지 → 부모</td><td><code>pointer</code></td><td><code>{ selector, relX, relY }</code></td><td>부모: <code>event.source === iframe.contentWindow</code>, selector 문자열 1~500자, relX·relY 0~1 숫자, 그 외 키 무시. 통과한 값은 100ms 단위로 마지막 것만 서버로 보낸다</td></tr>
+<tr><td>브리지 → 부모</td><td><code>text-edited</code></td><td><code>{ selector, before, text }</code></td><td>부모: <code>event.source === iframe.contentWindow</code>, 소유자의 단일 HTML 뷰어에서만 반영, selector 문자열 1~500자, before·text 문자열, 그 외 키 무시. 값은 텍스트로만 렌더한다</td></tr>
+<tr><td>부모 → 브리지</td><td><code>restore-text</code></td><td><code>{ selector, text }</code></td><td>브리지: 출처 확인, 둘 다 문자열인지 확인, 못 찾는 selector는 무시. 찾은 요소의 <code>textContent</code>를 되돌린다</td></tr>
 <tr><td>부모 → 브리지</td><td><code>render-pointers</code></td><td><code>[{ id, selector, relX, relY }]</code></td><td>브리지: 출처 확인, 배열·타입 확인(<code>render-pins</code>와 같은 방식), 못 찾는 selector는 그 점만 생략</td></tr>
 </table></div>
 <ul>
@@ -225,6 +229,8 @@ HTML:    { "kind": "html",  "selector": "main &gt; section:nth-of-type(2) &gt; c
 <ul>
   <li><strong>탐색 모드:</strong> 브리지는 아무것도 가로채지 않는다. 원본 HTML이 그대로 동작한다. 다만 커서 공유를 위해 <code>mousemove</code>를 수동(passive)으로 청취해 위치만 읽는다. <code>preventDefault</code>는 하지 않는다.</li>
   <li><strong>댓글 모드:</strong> 브리지가 캡처 단계에서 클릭을 가로채고(<code>preventDefault</code>) 선택자를 계산해 <code>anchor-picked</code>를 보낸다. 드래그 선택이 있으면 <code>mouseup</code>에서 공통 조상 요소의 선택자와 인용문(<code>quote</code>)을 보내고, 뒤따르는 click은 핀을 만들지 않는다.</li>
+  <li><strong>편집 모드(소유자, 단일 HTML만):</strong> 브리지가 캡처 단계에서 클릭을 가로채고(<code>preventDefault</code>), 텍스트 노드만 자식으로 가진 요소를 누르면 mousedown에서 <code>contentEditable="plaintext-only"</code>를 켠다. Enter(확정 단축키)나 포커스를 잃을 때 끝나며 바뀐 텍스트가 있으면 <code>text-edited</code>를 보낸다. 수정본 다운로드는 <code>/api/files/{id}/source</code>의 원본을 부모가 <code>DOMParser</code>로 파싱해 선택자 요소의 현재 텍스트가 <code>before</code>와 같을 때만 <code>textContent</code>를 바꾸고 <code>outerHTML</code>로 직렬화한다. 서버의 원본은 바뀌지 않고 편집 목록은 새로고침하면 사라진다.</li>
+  <li class="warn"><strong>편집 모드의 한계:</strong> 다운로드는 DOM 직렬화라 속성 따옴표·엔티티가 정규화되고, doctype은 이름만 다시 붙여 publicId·systemId가 빠질 수 있다(<code>&lt;script&gt;</code> 본문은 원본과 같다). 스크립트가 런타임에 만든 요소는 원본 소스에서 선택자가 맞지 않아 "반영하지 못한 변경"으로 알려준다. 다만 스크립트가 원본과 같은 태그·텍스트의 요소를 앞에 끼워 넣어 선택자가 원본 요소와 겹치면, 그 생성 요소를 고친 변경이 원본 요소에 적용된다. 다운로드는 그 시점의 현재 본문을 받으므로, 다른 탭에서 교체·롤백한 뒤 이전 화면에서 내려받으면 새 본문에 텍스트가 같은 요소만 반영되고 나머지는 "반영하지 못한 변경"으로 남는다. 자식 요소가 섞인 요소(<code>&lt;p&gt;줄1&lt;br&gt;줄2&lt;/p&gt;</code>)는 통째로 편집되지 않는다. zip 사이트·이미지·PDF는 편집 대상이 아니다.</li>
   <li class="warn"><strong>샌드박스 제약:</strong> <code>localStorage</code>·<code>sessionStorage</code>·<code>document.cookie</code> 접근이 예외를 던지고, <code>alert</code>·폼 제출·새 창 링크가 막힌다. 로드 시 localStorage를 쓰는 HTML은 깨질 수 있다. 저장소 대체 shim은 넣지 않고 샘플로 얼마나 깨지는지 확인한다.</li>
   <li class="warn"><strong>업로드 HTML의 자체 CSP:</strong> <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code>가 인라인 스크립트를 막으면 브리지가 실행되지 않는다. 이 경우 뷰어는 "이 파일은 핀 댓글을 지원하지 않을 수 있습니다"를 표시하고 목록 댓글만 허용한다.</li>
   <li class="warn"><strong>zip 사이트(진입 페이지만 핀):</strong> iframe 안에서 다른 페이지로 이동하면 뷰어가 "이 페이지는 핀 댓글 미지원"을 표시하고 댓글 모드를 끈다(앵커에 <code>path</code>를 두지 않는다). 진입 페이지로 돌아오면 핀이 다시 보인다.</li>
