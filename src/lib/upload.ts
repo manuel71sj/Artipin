@@ -1,16 +1,16 @@
 import { parse } from "marked";
 
 // 업로드 허용 형식·한도. 쓰면서 조정할 값은 여기만 고친다.
-export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-export const HTML_MAX_BYTES = 5 * 1024 * 1024;
+export const IMAGE_MAX_BYTES = 50 * 1024 * 1024;
+export const HTML_MAX_BYTES = 50 * 1024 * 1024;
 // PDF는 업로드 때 pdftoppm으로 페이지 PNG로 바꾼다. PAGE_PX는 페이지 긴 변의 픽셀 상한이다.
-export const PDF_MAX_BYTES = 20 * 1024 * 1024;
+export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 export const PDF_MAX_PAGES = 50;
 export const PDF_TIMEOUT_MS = 30_000;
 export const PDF_PAGE_PX = 1600;
 // zip은 업로드 때 풀어 uploads/<uuid>/ 디렉터리로 저장한다. SITE_MAX_BYTES는 압축을 푼 총량, SITE_MAX_ENTRIES는 읽은 항목 수(디렉터리·건너뛴 항목 포함)다.
-export const ZIP_MAX_BYTES = 20 * 1024 * 1024;
-export const SITE_MAX_BYTES = 20 * 1024 * 1024;
+export const ZIP_MAX_BYTES = 50 * 1024 * 1024;
+export const SITE_MAX_BYTES = 50 * 1024 * 1024;
 export const SITE_MAX_ENTRIES = 300;
 // zip 안에 둘 수 있는 확장자와 서빙할 Content-Type. 표 밖 확장자는 업로드 거절·서빙 404다.
 export const SITE_TYPES = new Map([
