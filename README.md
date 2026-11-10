@@ -87,6 +87,7 @@ PDF 업로드는 `pdftoppm`(poppler)으로 페이지 이미지를 만들므로 �
 | 이름 | 설명 |
 | --- | --- |
 | `AUTH_SECRET` | Auth.js 세션(JWT) 서명 키. `openssl rand -base64 32` 등으로 생성 |
+| `AUTH_URL` | Auth.js가 읽는 앱 기준 URL(예: `https://app.example.com`). 배포 환경에서 `APP_HOST` origin과 같게 둔다 |
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 클라이언트 시크릿 |
 | `AUTH_GITHUB_ID` | GitHub OAuth App 클라이언트 ID |
@@ -104,7 +105,26 @@ PDF 업로드는 `pdftoppm`(poppler)으로 페이지 이미지를 만들므로 �
 
 ## 컨테이너 배포
 
-사내 서버에 컨테이너 1개로 띄운다. 필요한 것: 호스트명 2개(`APP_HOST`, `CONTENT_HOST`)를 같은 컨테이너(3000 포트)로 라우팅하는 TLS 종단(사내 리버스 프록시), `/data`에 마운트할 영속 볼륨.
+Dokploy Application 1개로 배포한다. 필요한 것: 호스트명 2개(`APP_HOST`, `CONTENT_HOST`)와 `/data`에 마운트할 영속 볼륨.
+
+- General: Provider는 GitHub(이 저장소, 브랜치 `main`, Build Path `/`), Autodeploy를 켠다. `main`에 push하면 Dokploy가 저장소 `Dockerfile`로 빌드해 배포한다. Build Type은 `Dockerfile`(Dockerfile Path `Dockerfile`, Context `.`)이고 레지스트리는 쓰지 않는다.
+- Environment: `APP_HOST`, `CONTENT_HOST`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST`(`true`), `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`을 넣는다. 각 값의 의미는 위 [환경변수](#환경변수)를 따른다.
+- Advanced → Volume Mount: 영속 볼륨을 `/data`에 마운트한다. 볼륨 이름은 운영 환경의 실제 이름을 쓴다(예: `artipin-data`). Ports는 추가하지 않는다. 호스트에 3000을 publish하지 않고, 라우팅은 Domains로 한다.
+- Swarm Settings → Placement: 이미지와 볼륨이 있는 노드에 고정한다. 레지스트리 없이 빌드 노드의 로컬 이미지를 쓰기 때문이다. 예: `{"Constraints": ["node.hostname==<빌드 노드>"]}`
+- Swarm Settings → Update Config: `{"Parallelism": 1, "Order": "stop-first"}`. SQLite 볼륨을 두 컨테이너가 동시에 열지 않게 한다.
+- Domains: `APP_HOST`, `CONTENT_HOST` 호스트명(예: `app.example.com`, `content.example.com`) 2개를 등록한다. Container Port는 `3000`, HTTPS는 Let's Encrypt로 한다. 프록시(Dokploy traefik)가 요청의 `Host` 헤더를 그대로 전달한다.
+
+컨테이너는 비루트 사용자 `node`(uid 1000)로 실행된다. 이 버전을 root 소유 파일이 든 기존 볼륨에 처음 배포할 때는 서비스를 멈춘 뒤 한 번 소유자를 바꾸고 배포한다. 명령의 볼륨 이름은 실제로 마운트하는 볼륨 이름을 쓴다.
+
+```bash
+docker run --rm -v artipin-data:/data alpine chown -R 1000:1000 /data
+```
+
+기동할 때 마이그레이션이 자동 적용된다(`pnpm db:migrate`와 같은 동작).
+
+마이그레이션 0001을 owners 행이 있던 기존 DB에 처음 적용할 때만 `AUTH_SECRET`을 새 값으로 바꿔 기존 세션을 모두 무효화했다(owners id가 1부터 다시 매겨져 옛 세션이 다른 소유자에게 붙을 수 있었다). 이미 적용된 DB에는 해당하지 않는다.
+
+### Dokploy 없이 단일 컨테이너로 띄울 때
 
 ```bash
 docker build -t artipin .
@@ -114,16 +134,6 @@ docker run -d --name artipin -p 3000:3000 -v artipin-data:/data \
   -e AUTH_GITHUB_ID=... -e AUTH_GITHUB_SECRET=... -e AUTH_TRUST_HOST=true \
   artipin
 ```
-
-컨테이너는 비루트 사용자 `node`(uid 1000)로 실행된다. 이 버전을 root 소유 파일이 든 기존 볼륨에 처음 배포할 때는 서비스를 멈춘 뒤(Swarm이면 scale 0) 한 번 소유자를 바꾸고 배포한다.
-
-```bash
-docker run --rm -v artipin-data:/data alpine chown -R 1000:1000 /data
-```
-
-기동할 때 마이그레이션이 자동 적용된다(`pnpm db:migrate`와 같은 동작). 프록시는 요청의 `Host` 헤더를 그대로 전달해야 한다.
-
-이 버전(마이그레이션 0001)을 owners 행이 있던 기존 DB에 처음 적용할 때는 `AUTH_SECRET`을 새 값으로 바꿔 기존 세션을 모두 무효화한다(owners id가 1부터 다시 매겨져 옛 세션이 다른 소유자에게 붙을 수 있다).
 
 ## 백업
 
