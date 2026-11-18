@@ -2,11 +2,10 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { files, fileVersions } from "@/db/schema";
+import { files } from "@/db/schema";
 import { manageable, myTeams } from "@/lib/access";
-import { removeFile, saveUpload } from "@/lib/storage";
+import { deleteFile, replaceFile } from "@/lib/files";
 import { hashPassword } from "@/lib/unlock";
-import { checkUpload } from "@/lib/upload";
 
 export async function DELETE(
   _request: Request,
@@ -20,34 +19,14 @@ export async function DELETE(
     );
 
   const { id } = await params;
-  // 행·댓글·조회 행은 남기고 deleted_at만 기록한다. 모든 버전의 본문 파일을 지운다.
-  const [deleted] = await db
-    .update(files)
-    .set({ deletedAt: Date.now() })
-    .where(
-      and(
-        eq(files.id, Number(id)),
-        manageable(Number(session.user.id)),
-        isNull(files.deletedAt),
-      ),
-    )
-    .returning({ id: files.id });
-  if (!deleted)
+  if (!(await deleteFile(Number(session.user.id), Number(id))))
     return NextResponse.json(
       { error: "파일을 찾을 수 없습니다." },
       { status: 404 },
     );
-
-  // 롤백 행은 이전 버전과 같은 storage_path를 가리키므로 중복을 걷어낸다.
-  const paths = await db
-    .selectDistinct({ storagePath: fileVersions.storagePath })
-    .from(fileVersions)
-    .where(eq(fileVersions.fileId, deleted.id));
-  await Promise.all(paths.map((p) => removeFile(p.storagePath)));
   return new NextResponse(null, { status: 204 });
 }
 
-// 같은 행의 본문만 바꾼다. share_token·댓글·조회 기록은 files.id에 묶여 그대로 남고, 이전 본문은 버전으로 보관한다.
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -74,81 +53,18 @@ export async function PUT(
   }
 
   const data = Buffer.from(await file.arrayBuffer());
-  const check = checkUpload(file.name, data);
-  if (!check.ok)
-    return NextResponse.json({ error: check.error }, { status: 400 });
-
   const { id } = await params;
-  const [row] = await db
-    .select({ kind: files.kind, encrypted: files.encrypted })
-    .from(files)
-    .where(
-      and(
-        eq(files.id, Number(id)),
-        manageable(Number(session.user.id)),
-        isNull(files.deletedAt),
-      ),
-    );
-  if (!row)
+  const replaced = await replaceFile(
+    Number(session.user.id),
+    Number(id),
+    file.name,
+    data,
+  );
+  if (!replaced.ok)
     return NextResponse.json(
-      { error: "파일을 찾을 수 없습니다." },
-      { status: 404 },
+      { error: replaced.error },
+      { status: replaced.status },
     );
-  if (row.encrypted)
-    return NextResponse.json(
-      { error: "암호화 파일은 교체할 수 없습니다." },
-      { status: 400 },
-    );
-  // 이미지 앵커는 0~1 좌표, PDF 앵커는 페이지+좌표, HTML 앵커는 선택자라 종류가 바뀌면 기존 핀이 의미를 잃는다.
-  if (check.kind !== row.kind)
-    return NextResponse.json(
-      { error: "같은 종류의 파일로만 교체할 수 있습니다." },
-      { status: 400 },
-    );
-
-  // 새 파일을 먼저 저장하고 행 갱신과 버전 행 추가를 한 트랜잭션에 묶는다. 갱신 전까지는 이전 본문이 서빙된다.
-  const saved = await saveUpload(check.kind, check.body);
-  if (!saved.ok)
-    return NextResponse.json({ error: saved.error }, { status: 400 });
-  const { storagePath } = saved;
-  const replaced = db.transaction((tx) => {
-    // 조회 뒤 저장하는 동안 권한이 회수됐을 수 있으므로(팀 탈퇴·개인으로 되돌리기) 갱신에도 manageable을 건다. 0행이면 버전 행도 남기지 않는다.
-    const [updated] = tx
-      .update(files)
-      .set({
-        storagePath,
-        size: check.body.length,
-        title: file.name,
-        replacedAt: Date.now(),
-      })
-      .where(
-        and(
-          eq(files.id, Number(id)),
-          manageable(Number(session.user.id)),
-          isNull(files.deletedAt),
-        ),
-      )
-      .returning({ id: files.id })
-      .all();
-    if (!updated) return false;
-    tx.insert(fileVersions)
-      .values({
-        fileId: Number(id),
-        no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${Number(id)})`,
-        storagePath,
-        size: check.body.length,
-        title: file.name,
-      })
-      .run();
-    return true;
-  });
-  if (!replaced) {
-    await removeFile(storagePath);
-    return NextResponse.json(
-      { error: "파일을 찾을 수 없습니다." },
-      { status: 404 },
-    );
-  }
   return new NextResponse(null, { status: 204 });
 }
 
