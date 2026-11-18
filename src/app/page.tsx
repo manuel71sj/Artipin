@@ -131,6 +131,9 @@ export default async function Home() {
           {session.user.email && (
             <span className={styles.email}>{session.user.email}</span>
           )}
+          <a className={styles.signout} href="/keys">
+            API 키
+          </a>
           <form
             action={async () => {
               "use server";

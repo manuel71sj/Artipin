@@ -46,6 +46,9 @@
 }
 
 .signout {
+  /* 링크(a)로도 쓰므로 min-height 안에서 글자를 세로 가운데에 둔다 */
+  display: inline-flex;
+  align-items: center;
   flex: none;
   min-height: var(--control);
   padding: 0 var(--space-2);

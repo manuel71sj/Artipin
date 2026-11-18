@@ -120,3 +120,14 @@ export const views = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.fileId, t.visitorId] })],
 );
+
+// open API(/api/v1) 인증 키. 원문은 발급 응답에만 싣고 SHA-256(hex)만 저장한다. 폐기는 행 삭제다.
+export const apiKeys = sqliteTable("api_keys", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: integer("owner_id")
+    .notNull()
+    .references(() => owners.id),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  createdAt: integer("created_at").notNull().default(now),
+});

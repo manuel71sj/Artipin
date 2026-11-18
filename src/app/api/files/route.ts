@@ -44,5 +44,8 @@ export async function POST(request: Request) {
   });
   if (!created.ok)
     return NextResponse.json({ error: created.error }, { status: 400 });
-  return NextResponse.json({ shareToken: created.shareToken }, { status: 201 });
+  return NextResponse.json(
+    { shareToken: created.file.shareToken },
+    { status: 201 },
+  );
 }

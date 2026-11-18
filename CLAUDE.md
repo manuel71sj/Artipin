@@ -46,6 +46,7 @@ pnpm metrics                          # scripts/metrics.sql 지표 출력
 - 관리 권한(소유자처럼 다루기) 판정은 `src/lib/access.ts`의 `canManage`(행 값)·`manageable`(SQL 조건) 한 곳에서 한다: 본인이 올린 파일이거나 `files.team_id`의 팀 멤버. 호출부에 `ownerId` 비교를 다시 쓰지 않는다.
 - jwt 콜백이 로그인 시 owners를 upsert하고 `token.id = String(owners.id)`. 모든 호출부는 `session.user.id`(문자열)를 `Number()`로 owners.id와 비교한다. 세션은 DB와 대조하지 않으므로 owners 테이블을 재생성해 id가 재사용되면 `AUTH_SECRET`을 교체해야 한다.
 - 개발 전용 `dev-login` 제공자는 `process.env.NODE_ENV === "development"` 직접 비교로만 켠다. `next build`가 이 식을 `"production"`으로 인라인해 운영 산출물에서 빠진다. 런타임 env 플래그로 바꾸지 않는다.
+- open API v1(`/api/v1/**`)은 API 키(`src/lib/api-key.ts`의 `ownerIdFromKey`)만, 키 관리(`/api/keys`)와 파일 관리 라우트(`/api/files/**`)는 `auth()`만 쓴다.
 
 ### 데이터 (`src/db`)
 - SQLite(better-sqlite3, WAL, `foreign_keys=ON`) + Drizzle. DB와 `uploads/`는 `DATA_DIR`(기본 `./data`, 컨테이너 `/data`).

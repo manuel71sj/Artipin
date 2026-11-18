@@ -3,8 +3,30 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
 import { manageable } from "@/lib/access";
+import { appOrigin } from "@/lib/hosts";
 import { removeFile, saveUpload } from "@/lib/storage";
 import { checkUpload } from "@/lib/upload";
+
+export type FileRow = typeof files.$inferSelect;
+
+/** open API(/api/v1)가 돌려주는 파일 객체. passwordHash·storagePath·ownerId는 싣지 않는다. */
+export function fileJson(row: FileRow) {
+  return {
+    id: row.id,
+    title: row.title,
+    kind: row.kind,
+    size: row.size,
+    url: `${appOrigin()}/s/${row.shareToken}`,
+    viewUrl:
+      row.viewToken === null ? null : `${appOrigin()}/s/${row.viewToken}`,
+    expiresAt: row.expiresAt,
+    hasPassword: row.passwordHash !== null,
+    encrypted: row.encrypted,
+    teamId: row.teamId,
+    createdAt: row.createdAt,
+    replacedAt: row.replacedAt,
+  };
+}
 
 // 파일 등록·교체·삭제의 본문. 세션 라우트(/api/files)와 키 라우트(/api/v1/files)가 함께 쓴다.
 
@@ -17,14 +39,14 @@ export async function createFile(
     body: Buffer;
     encrypted: boolean;
   },
-): Promise<{ ok: true; shareToken: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; file: FileRow } | { ok: false; error: string }> {
   const shareToken = randomBytes(16).toString("base64url");
   const saved = await saveUpload(input.kind, input.body);
   if (!saved.ok) return { ok: false, error: saved.error };
   const { storagePath } = saved;
   // 현재 본문 = 최대 no 버전이라는 불변식을 지키려고 files와 no=1 행을 한 트랜잭션에 만든다.
-  db.transaction((tx) => {
-    const { id } = tx
+  const file = db.transaction((tx) => {
+    const created = tx
       .insert(files)
       .values({
         ownerId,
@@ -35,19 +57,20 @@ export async function createFile(
         shareToken,
         encrypted: input.encrypted,
       })
-      .returning({ id: files.id })
+      .returning()
       .get();
     tx.insert(fileVersions)
       .values({
-        fileId: id,
+        fileId: created.id,
         no: 1,
         storagePath,
         size: input.body.length,
         title: input.title,
       })
       .run();
+    return created;
   });
-  return { ok: true, shareToken };
+  return { ok: true, file };
 }
 
 // 같은 행의 본문만 바꾼다. share_token·댓글·조회 기록은 files.id에 묶여 그대로 남고, 이전 본문은 버전으로 보관한다.
@@ -56,7 +79,9 @@ export async function replaceFile(
   id: number,
   name: string,
   data: Buffer,
-): Promise<{ ok: true } | { ok: false; status: 400 | 404; error: string }> {
+): Promise<
+  { ok: true; file: FileRow } | { ok: false; status: 400 | 404; error: string }
+> {
   const check = checkUpload(name, data);
   if (!check.ok) return { ok: false, status: 400, error: check.error };
 
@@ -97,9 +122,9 @@ export async function replaceFile(
       .where(
         and(eq(files.id, id), manageable(ownerId), isNull(files.deletedAt)),
       )
-      .returning({ id: files.id })
+      .returning()
       .all();
-    if (!updated) return false;
+    if (!updated) return null;
     tx.insert(fileVersions)
       .values({
         fileId: id,
@@ -109,13 +134,13 @@ export async function replaceFile(
         title: name,
       })
       .run();
-    return true;
+    return updated;
   });
   if (!replaced) {
     await removeFile(storagePath);
     return { ok: false, status: 404, error: "파일을 찾을 수 없습니다." };
   }
-  return { ok: true };
+  return { ok: true, file: replaced };
 }
 
 /** 관리할 수 있는 파일을 지운다. 지웠으면 true, 대상이 없으면 false. */

@@ -64,6 +64,13 @@
       "when": 1792630844490,
       "tag": "0008_green_shen",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794980379123,
+      "tag": "0009_sleepy_sprite",
+      "breakpoints": true
     }
   ]
 }
