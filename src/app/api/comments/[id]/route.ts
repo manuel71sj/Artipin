@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
 import { canManage } from "@/lib/access";
+import { pathId } from "@/lib/path-id";
 import { readVisitorId } from "@/lib/visitor";
 
 const fail = (error: string, status: number) =>
@@ -15,7 +16,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const commentId = Number(id);
+  const commentId = pathId(id);
   const [row] = await db
     .select({
       visitorId: comments.visitorId,

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
 import { manageable } from "@/lib/access";
@@ -45,31 +45,38 @@ export async function createFile(
   if (!saved.ok) return { ok: false, error: saved.error };
   const { storagePath } = saved;
   // 현재 본문 = 최대 no 버전이라는 불변식을 지키려고 files와 no=1 행을 한 트랜잭션에 만든다.
-  const file = db.transaction((tx) => {
-    const created = tx
-      .insert(files)
-      .values({
-        ownerId,
-        kind: input.kind,
-        title: input.title,
-        storagePath,
-        size: input.body.length,
-        shareToken,
-        encrypted: input.encrypted,
-      })
-      .returning()
-      .get();
-    tx.insert(fileVersions)
-      .values({
-        fileId: created.id,
-        no: 1,
-        storagePath,
-        size: input.body.length,
-        title: input.title,
-      })
-      .run();
-    return created;
-  });
+  // 트랜잭션이 실패하면 방금 저장한 본문이 가리키는 행이 없으므로 지우고 예외를 그대로 올린다.
+  let file: FileRow;
+  try {
+    file = db.transaction((tx) => {
+      const created = tx
+        .insert(files)
+        .values({
+          ownerId,
+          kind: input.kind,
+          title: input.title,
+          storagePath,
+          size: input.body.length,
+          shareToken,
+          encrypted: input.encrypted,
+        })
+        .returning()
+        .get();
+      tx.insert(fileVersions)
+        .values({
+          fileId: created.id,
+          no: 1,
+          storagePath,
+          size: input.body.length,
+          title: input.title,
+        })
+        .run();
+      return created;
+    });
+  } catch (e) {
+    await removeFile(storagePath);
+    throw e;
+  }
   return { ok: true, file };
 }
 
@@ -109,33 +116,40 @@ export async function replaceFile(
   const saved = await saveUpload(check.kind, check.body);
   if (!saved.ok) return { ok: false, status: 400, error: saved.error };
   const { storagePath } = saved;
-  const replaced = db.transaction((tx) => {
-    // 조회 뒤 저장하는 동안 권한이 회수됐을 수 있으므로(팀 탈퇴·개인으로 되돌리기) 갱신에도 manageable을 건다. 0행이면 버전 행도 남기지 않는다.
-    const [updated] = tx
-      .update(files)
-      .set({
-        storagePath,
-        size: check.body.length,
-        title: name,
-        replacedAt: Date.now(),
-      })
-      .where(
-        and(eq(files.id, id), manageable(ownerId), isNull(files.deletedAt)),
-      )
-      .returning()
-      .all();
-    if (!updated) return null;
-    tx.insert(fileVersions)
-      .values({
-        fileId: id,
-        no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${id})`,
-        storagePath,
-        size: check.body.length,
-        title: name,
-      })
-      .run();
-    return updated;
-  });
+  let replaced: FileRow | null;
+  try {
+    replaced = db.transaction((tx) => {
+      // 조회 뒤 저장하는 동안 권한이 회수됐을 수 있으므로(팀 탈퇴·개인으로 되돌리기) 갱신에도 manageable을 건다. 0행이면 버전 행도 남기지 않는다.
+      const [updated] = tx
+        .update(files)
+        .set({
+          storagePath,
+          size: check.body.length,
+          title: name,
+          replacedAt: Date.now(),
+        })
+        .where(
+          and(eq(files.id, id), manageable(ownerId), isNull(files.deletedAt)),
+        )
+        .returning()
+        .all();
+      if (!updated) return null;
+      tx.insert(fileVersions)
+        .values({
+          fileId: id,
+          no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${id})`,
+          storagePath,
+          size: check.body.length,
+          title: name,
+        })
+        .run();
+      return updated;
+    });
+  } catch (e) {
+    // 트랜잭션이 실패하면 새 본문을 가리키는 행이 없으므로 지우고 예외를 그대로 올린다.
+    await removeFile(storagePath);
+    throw e;
+  }
   if (!replaced) {
     await removeFile(storagePath);
     return { ok: false, status: 404, error: "파일을 찾을 수 없습니다." };
@@ -143,7 +157,7 @@ export async function replaceFile(
   return { ok: true, file: replaced };
 }
 
-/** 관리할 수 있는 파일을 지운다. 지웠으면 true, 대상이 없으면 false. */
+/** 관리할 수 있는 파일을 지운다. 지웠으면 true, 대상이 없으면 false. 이미 삭제된 파일에 다시 부르면 남은 본문 정리를 다시 하고 false. */
 export async function deleteFile(
   ownerId: number,
   id: number,
@@ -154,13 +168,24 @@ export async function deleteFile(
     .set({ deletedAt: Date.now() })
     .where(and(eq(files.id, id), manageable(ownerId), isNull(files.deletedAt)))
     .returning({ id: files.id });
-  if (!deleted) return false;
+  // 삭제 표시는 됐는데 본문 정리가 도중에 실패했을 수 있으므로, 이미 삭제된 관리 가능 파일이면 정리만 다시 돈다.
+  let fileId = deleted?.id;
+  if (fileId === undefined) {
+    const [already] = await db
+      .select({ id: files.id })
+      .from(files)
+      .where(
+        and(eq(files.id, id), manageable(ownerId), isNotNull(files.deletedAt)),
+      );
+    if (!already) return false;
+    fileId = already.id;
+  }
 
   // 롤백 행은 이전 버전과 같은 storage_path를 가리키므로 중복을 걷어낸다.
   const paths = await db
     .selectDistinct({ storagePath: fileVersions.storagePath })
     .from(fileVersions)
-    .where(eq(fileVersions.fileId, deleted.id));
+    .where(eq(fileVersions.fileId, fileId));
   await Promise.all(paths.map((p) => removeFile(p.storagePath)));
-  return true;
+  return deleted !== undefined;
 }

@@ -6,6 +6,7 @@ import { files } from "@/db/schema";
 import { manageable } from "@/lib/access";
 import { ownerIdFromKey } from "@/lib/api-key";
 import { fileJson } from "@/lib/files";
+import { pathId } from "@/lib/path-id";
 
 // open API: 보기 전용 링크(viewUrl)를 만든다. 이미 있으면 그대로 둔다. 끊기는 화면에서만 한다.
 export async function POST(
@@ -21,7 +22,7 @@ export async function POST(
 
   const { id } = await params;
   const owned = and(
-    eq(files.id, Number(id)),
+    eq(files.id, pathId(id)),
     manageable(ownerId),
     isNull(files.deletedAt),
   );

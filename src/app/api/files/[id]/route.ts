@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { files } from "@/db/schema";
 import { manageable, myTeams } from "@/lib/access";
 import { deleteFile, replaceFile } from "@/lib/files";
-import { hashPassword } from "@/lib/unlock";
+import { pathId } from "@/lib/path-id";
+import { hashPassword, isLinkPassword } from "@/lib/unlock";
 
 export async function DELETE(
   _request: Request,
@@ -19,7 +20,7 @@ export async function DELETE(
     );
 
   const { id } = await params;
-  if (!(await deleteFile(Number(session.user.id), Number(id))))
+  if (!(await deleteFile(Number(session.user.id), pathId(id))))
     return NextResponse.json(
       { error: "파일을 찾을 수 없습니다." },
       { status: 404 },
@@ -56,7 +57,7 @@ export async function PUT(
   const { id } = await params;
   const replaced = await replaceFile(
     Number(session.user.id),
-    Number(id),
+    pathId(id),
     file.name,
     data,
   );
@@ -68,7 +69,7 @@ export async function PUT(
   return new NextResponse(null, { status: 204 });
 }
 
-// 공개 링크 속성을 정한다. password(1~100자, null이면 해제)가 있으면 비밀번호를, teamId(정수 또는 null)가 있으면 소속 팀을, 아니면 만료 시각을 정한다. 만료는 프리셋(1·7·30일)만 받고 null이면 없앤다.
+// 공개 링크 속성을 정한다. password(줄바꿈 없는 1~100자, null이면 해제)가 있으면 비밀번호를, teamId(정수 또는 null)가 있으면 소속 팀을, 아니면 만료 시각을 정한다. 만료는 프리셋(1·7·30일)만 받고 null이면 없앤다.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -83,19 +84,19 @@ export async function PATCH(
   const body = await request.json().catch(() => null);
   const { id } = await params;
   const owned = and(
-    eq(files.id, Number(id)),
+    eq(files.id, pathId(id)),
     manageable(Number(session.user.id)),
     isNull(files.deletedAt),
   );
 
   if (body?.password !== undefined) {
     const pw = body.password;
-    if (
-      pw !== null &&
-      (typeof pw !== "string" || pw.length < 1 || pw.length > 100)
-    )
+    if (pw !== null && !isLinkPassword(pw))
       return NextResponse.json(
-        { error: "password는 1~100자 문자열 또는 null이어야 합니다." },
+        {
+          error:
+            "password는 줄바꿈 없는 1~100자 문자열 또는 null이어야 합니다.",
+        },
         { status: 400 },
       );
     const [changed] = await db

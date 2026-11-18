@@ -6,6 +6,7 @@ import { files } from "@/db/schema";
 import { manageable } from "@/lib/access";
 import { ownerIdFromKey } from "@/lib/api-key";
 import { fileJson } from "@/lib/files";
+import { pathId } from "@/lib/path-id";
 
 // open API: 댓글 링크(url)를 새로 만든다. 이전 url은 끊기고 viewUrl·파일·댓글은 그대로 남는다.
 export async function POST(
@@ -21,7 +22,7 @@ export async function POST(
 
   const { id } = await params;
   const owned = and(
-    eq(files.id, Number(id)),
+    eq(files.id, pathId(id)),
     manageable(ownerId),
     isNull(files.deletedAt),
   );

@@ -5,6 +5,7 @@ import { files } from "@/db/schema";
 import { manageable } from "@/lib/access";
 import { ownerIdFromKey } from "@/lib/api-key";
 import { loadComments } from "@/lib/comments";
+import { pathId } from "@/lib/path-id";
 
 // open API: 파일의 모든 댓글(핀 댓글·핀 없는 댓글)과 답글을 돌려준다.
 // 소유자 권한으로 읽으므로 링크의 비밀번호·만료와 무관하다. 방문자 식별자(visitorId)는 싣지 않는다.
@@ -25,7 +26,7 @@ export async function GET(
     .from(files)
     .where(
       and(
-        eq(files.id, Number(id)),
+        eq(files.id, pathId(id)),
         manageable(ownerId),
         isNull(files.deletedAt),
       ),

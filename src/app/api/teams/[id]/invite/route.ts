@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { teams } from "@/db/schema";
 import { myTeams } from "@/lib/access";
+import { pathId } from "@/lib/path-id";
 
 // 초대 코드를 새로 만든다. 덮어쓰기 한 문장이라 이전 초대 링크는 즉시 끊긴다. 팀 멤버면 누구나 할 수 있다.
 export async function POST(
@@ -24,7 +25,7 @@ export async function POST(
     .set({ inviteCode: randomBytes(16).toString("base64url") })
     .where(
       and(
-        eq(teams.id, Number(id)),
+        eq(teams.id, pathId(id)),
         inArray(teams.id, myTeams(Number(session.user.id))),
       ),
     )

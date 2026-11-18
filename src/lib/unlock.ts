@@ -39,6 +39,14 @@ export async function hashPassword(pw: string): Promise<string> {
   return `${salt.toString("hex")}:${hash.toString("hex")}`;
 }
 
+/** 링크 비밀번호로 쓸 수 있는 값인가. 줄바꿈 없는 1~100자(코드 포인트 기준)의 문자열. 화면용·v1 PATCH가 함께 쓴다. */
+export function isLinkPassword(pw: unknown): pw is string {
+  // 코드 포인트 100개는 UTF-16으로 최대 200이라, 그보다 길면 전개하지 않고 거절한다.
+  if (typeof pw !== "string" || pw.length > 200) return false;
+  const length = [...pw].length;
+  return length >= 1 && length <= 100 && !/[\r\n]/.test(pw);
+}
+
 export async function verifyPassword(
   pw: string,
   stored: string,

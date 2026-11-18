@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { apiKeys } from "@/db/schema";
+import { pathId } from "@/lib/path-id";
 
 // 내 API 키를 폐기한다(행 삭제). 세션으로만 부를 수 있다.
 export async function DELETE(
@@ -22,7 +23,7 @@ export async function DELETE(
     .delete(apiKeys)
     .where(
       and(
-        eq(apiKeys.id, Number(id)),
+        eq(apiKeys.id, pathId(id)),
         eq(apiKeys.ownerId, Number(session.user.id)),
       ),
     )

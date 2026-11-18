@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { comments, files } from "@/db/schema";
 import { canManage } from "@/lib/access";
+import { pathId } from "@/lib/path-id";
 
 const fail = (error: string, status: number) =>
   NextResponse.json({ error }, { status });
@@ -35,7 +36,7 @@ export async function POST(
     })
     .from(comments)
     .innerJoin(files, eq(files.id, comments.fileId))
-    .where(and(eq(comments.id, Number(id)), isNull(files.deletedAt)));
+    .where(and(eq(comments.id, pathId(id)), isNull(files.deletedAt)));
   if (!comment) return fail("댓글을 찾을 수 없습니다.", 404);
   if (!(await canManage(session, comment)))
     return fail("권한이 없습니다.", 403);
@@ -45,6 +46,6 @@ export async function POST(
   await db
     .update(comments)
     .set({ resolvedAt: resolved ? Date.now() : null })
-    .where(eq(comments.id, Number(id)));
+    .where(eq(comments.id, pathId(id)));
   return new NextResponse(null, { status: 204 });
 }

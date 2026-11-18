@@ -6,7 +6,8 @@ import { manageable } from "@/lib/access";
 import { isRecord } from "@/lib/anchor";
 import { ownerIdFromKey } from "@/lib/api-key";
 import { deleteFile, fileJson, replaceFile } from "@/lib/files";
-import { hashPassword } from "@/lib/unlock";
+import { pathId } from "@/lib/path-id";
+import { hashPassword, isLinkPassword } from "@/lib/unlock";
 
 // open API: API 키(Bearer)로만 인증한다. 세션 쿠키는 보지 않는다.
 
@@ -27,7 +28,7 @@ export async function GET(request: Request, { params }: Context) {
     .from(files)
     .where(
       and(
-        eq(files.id, Number(id)),
+        eq(files.id, pathId(id)),
         manageable(ownerId),
         isNull(files.deletedAt),
       ),
@@ -57,7 +58,7 @@ export async function PUT(request: Request, { params }: Context) {
 
   const data = Buffer.from(await file.arrayBuffer());
   const { id } = await params;
-  const replaced = await replaceFile(ownerId, Number(id), file.name, data);
+  const replaced = await replaceFile(ownerId, pathId(id), file.name, data);
   if (!replaced.ok)
     return NextResponse.json(
       { error: replaced.error },
@@ -71,11 +72,11 @@ export async function DELETE(request: Request, { params }: Context) {
   if (ownerId === null) return unauthorized();
 
   const { id } = await params;
-  if (!(await deleteFile(ownerId, Number(id)))) return notFound();
+  if (!(await deleteFile(ownerId, pathId(id)))) return notFound();
   return new NextResponse(null, { status: 204 });
 }
 
-// 공개 링크 속성을 정한다. 한 요청에 expiresInDays(1·7·30, null이면 해제) 또는 password(1~100자, null이면 해제) 하나만 받는다.
+// 공개 링크 속성을 정한다. 한 요청에 expiresInDays(1·7·30, null이면 해제) 또는 password(줄바꿈 없는 1~100자, null이면 해제) 하나만 받는다.
 // 팀 이동(teamId)은 받지 않는다(화면에서만 한다).
 export async function PATCH(request: Request, { params }: Context) {
   const ownerId = await ownerIdFromKey(request);
@@ -102,12 +103,12 @@ export async function PATCH(request: Request, { params }: Context) {
 
   let change: { passwordHash: string | null } | { expiresAt: number | null };
   if (pw !== undefined) {
-    if (
-      pw !== null &&
-      (typeof pw !== "string" || pw.length < 1 || pw.length > 100)
-    )
+    if (pw !== null && !isLinkPassword(pw))
       return NextResponse.json(
-        { error: "password는 1~100자 문자열 또는 null이어야 합니다." },
+        {
+          error:
+            "password는 줄바꿈 없는 1~100자 문자열 또는 null이어야 합니다.",
+        },
         { status: 400 },
       );
     change = { passwordHash: pw === null ? null : await hashPassword(pw) };
@@ -128,7 +129,7 @@ export async function PATCH(request: Request, { params }: Context) {
     .set(change)
     .where(
       and(
-        eq(files.id, Number(id)),
+        eq(files.id, pathId(id)),
         manageable(ownerId),
         isNull(files.deletedAt),
       ),

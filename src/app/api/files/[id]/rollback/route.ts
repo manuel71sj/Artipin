@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { files, fileVersions } from "@/db/schema";
 import { manageable } from "@/lib/access";
+import { pathId } from "@/lib/path-id";
 
 const fail = (error: string, status: number) =>
   NextResponse.json({ error }, { status });
@@ -30,7 +31,7 @@ export async function POST(
     .innerJoin(fileVersions, eq(fileVersions.fileId, files.id))
     .where(
       and(
-        eq(files.id, Number(id)),
+        eq(files.id, pathId(id)),
         manageable(Number(session.user.id)),
         isNull(files.deletedAt),
         eq(fileVersions.no, no as number),
@@ -45,7 +46,7 @@ export async function POST(
       .set({ ...version, replacedAt: Date.now() })
       .where(
         and(
-          eq(files.id, Number(id)),
+          eq(files.id, pathId(id)),
           manageable(Number(session.user.id)),
           isNull(files.deletedAt),
         ),
@@ -55,8 +56,8 @@ export async function POST(
     if (!updated) return false;
     tx.insert(fileVersions)
       .values({
-        fileId: Number(id),
-        no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${Number(id)})`,
+        fileId: pathId(id),
+        no: sql<number>`(select max(${fileVersions.no}) + 1 from ${fileVersions} where ${fileVersions.fileId} = ${pathId(id)})`,
         ...version,
       })
       .run();

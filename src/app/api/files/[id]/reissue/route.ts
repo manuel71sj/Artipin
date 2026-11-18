@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { files } from "@/db/schema";
 import { manageable } from "@/lib/access";
+import { pathId } from "@/lib/path-id";
 
 // 댓글 링크만 끊는다: share_token만 새로 만든다. view_token(보기 전용 링크)과 파일·댓글·조회 기록은 그대로 남는다.
 export async function POST(
@@ -25,7 +26,7 @@ export async function POST(
     .set({ shareToken })
     .where(
       and(
-        eq(files.id, Number(id)),
+        eq(files.id, pathId(id)),
         manageable(Number(session.user.id)),
         isNull(files.deletedAt),
       ),

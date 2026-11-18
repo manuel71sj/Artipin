@@ -15,14 +15,14 @@ const errorResponse = (description: string) => ({
 });
 const unauthorized = errorResponse("API 키가 없거나 틀리거나 폐기됐습니다.");
 const notFound = errorResponse(
-  "없는 파일, 삭제된 파일, 관리 권한이 없는 파일, 숫자가 아닌 id.",
+  "없는 파일, 삭제된 파일, 관리 권한이 없는 파일, 양의 10진 정수가 아닌 id.",
 );
 const idParam = {
   name: "id",
   in: "path",
   required: true,
   description: "파일 객체의 id",
-  schema: { type: "integer" },
+  schema: { type: "integer", minimum: 1 },
 };
 const upload = {
   required: true,
@@ -161,8 +161,9 @@ export function GET() {
                         type: "string",
                         minLength: 1,
                         maxLength: 100,
+                        pattern: "^[^\\r\\n]*$",
                       }),
-                      description: "링크 비밀번호. null이면 해제.",
+                      description: "링크 비밀번호(줄바꿈 불가). null이면 해제.",
                     },
                   },
                 },
