@@ -95,6 +95,9 @@ PDF 업로드는 `pdftoppm`(poppler)으로 페이지 이미지를 만들므로 �
 | `APP_HOST` | 소유자 화면 호스트(`host[:port]`, 예: `app.localhost:3000`). `localhost`가 포함되면 http, 아니면 https. 복사하는 공유 링크는 이 값이 아니라 접속 중인 주소를 쓴다 |
 | `DATA_DIR` | SQLite(`app.db`)와 `uploads/`를 두는 디렉터리. 기본 `./data`, 컨테이너 이미지는 `/data` |
 | `CONTENT_HOST` | 업로드 본문 서빙 호스트(`host[:port]`, 예: `content.localhost:3000`). `APP_HOST`와 다른 값이어야 하며, 이 호스트는 `/c/*`만 응답한다 |
+| `ADMIN_ACCOUNTS` | `/admin`(관리자 화면)을 볼 계정. `provider:provider_account_id`를 쉼표로 나열한다(예: `google:1234,github:5678`, 로컬 테스트 계정은 `dev-login:test-owner`). 비우거나 없으면 관리자가 없다 |
+
+`ADMIN_ACCOUNTS`에 넣을 본인 값은 한 번 로그인한 뒤 `sqlite3 <DATA_DIR>/app.db "select provider, provider_account_id, name from owners"`로 확인한다. 운영에서는 실행 중인 DB를 호스트에서 직접 열지 말고 백업 사본(`scripts/backup.sh` 산출물)에서 조회한다. 세션은 owners.id만 담으므로 DB를 다른 사본으로 복원·교체하거나 owners를 재생성하면 `AUTH_SECRET`도 교체한다(예전 세션이 다른 관리자 행을 가리키지 않게).
 
 로그인은 Google·GitHub 개인 계정을 쓰며 도메인 제한은 없다. 제공자별 콜백 URL은 `{APP_HOST 기준 origin}/api/auth/callback/{google|github}`다(`APP_HOST`에 `localhost`가 포함되면 `http://`, 아니면 `https://`).
 
@@ -108,7 +111,7 @@ PDF 업로드는 `pdftoppm`(poppler)으로 페이지 이미지를 만들므로 �
 Dokploy Application 1개로 배포한다. 필요한 것: 호스트명 2개(`APP_HOST`, `CONTENT_HOST`)와 `/data`에 마운트할 영속 볼륨.
 
 - General: Provider는 GitHub(이 저장소, 브랜치 `main`, Build Path `/`), Autodeploy를 켠다. `main`에 push하면 Dokploy가 저장소 `Dockerfile`로 빌드해 배포한다. Build Type은 `Dockerfile`(Dockerfile Path `Dockerfile`, Context `.`)이고 레지스트리는 쓰지 않는다.
-- Environment: `APP_HOST`, `CONTENT_HOST`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST`(`true`), `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`을 넣는다. 각 값의 의미는 위 [환경변수](#환경변수)를 따른다.
+- Environment: `APP_HOST`, `CONTENT_HOST`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST`(`true`), `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `ADMIN_ACCOUNTS`(관리자 화면을 쓸 때)를 넣는다. 각 값의 의미는 위 [환경변수](#환경변수)를 따른다.
 - Advanced → Volume Mount: 영속 볼륨을 `/data`에 마운트한다. 볼륨 이름은 운영 환경의 실제 이름을 쓴다(예: `artipin-data`). Ports는 추가하지 않는다. 호스트에 3000을 publish하지 않고, 라우팅은 Domains로 한다.
 - Swarm Settings → Placement: 이미지와 볼륨이 있는 노드에 고정한다. 레지스트리 없이 빌드 노드의 로컬 이미지를 쓰기 때문이다. 예: `{"Constraints": ["node.hostname==<빌드 노드>"]}`
 - Swarm Settings → Update Config: `{"Parallelism": 1, "Order": "stop-first"}`. SQLite 볼륨을 두 컨테이너가 동시에 열지 않게 한다.

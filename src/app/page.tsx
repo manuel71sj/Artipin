@@ -4,6 +4,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { comments, files, teamMembers, teams, views } from "@/db/schema";
 import { manageable } from "@/lib/access";
+import { isAdmin } from "@/lib/admin";
 import { relativeTime } from "@/lib/time";
 import { FileActions } from "./_components/file-actions";
 import { TeamPanel } from "./_components/team-panel";
@@ -16,6 +17,7 @@ export default async function Home() {
 
   // open: 아직 해결되지 않은 댓글(답글 제외). 핀 댓글의 처리 대기 수를 목록에서 바로 보여준다.
   const me = Number(session.user.id);
+  const admin = await isAdmin(session);
   const rows = await db
     .select({
       id: files.id,
@@ -134,6 +136,11 @@ export default async function Home() {
           <a className={styles.signout} href="/keys">
             API 키
           </a>
+          {admin && (
+            <a className={styles.signout} href="/admin">
+              관리자
+            </a>
+          )}
           <form
             action={async () => {
               "use server";
